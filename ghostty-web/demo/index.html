@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ghostty-web</title>
+    <style>
+      /* Load Nerd Font from server */
+      @font-face {
+        font-family: 'FiraCode Nerd Font Mono';
+        src: url('/demo/fonts/FiraCodeNerdFontMono-Regular.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+        font-display: block;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #0f172a;
+        display: flex;
+        margin: 0;
+        padding: 0;
+      }
+
+      .terminal-window {
+        width: 100%;
+        height: 100%;
+        background: #1e1e1e;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .title-bar {
+        background: #2d2d2d;
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-bottom: 1px solid #1a1a1a;
+      }
+
+      .traffic-lights {
+        display: flex;
+        gap: 8px;
+      }
+
+      .light {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+
+      .light.red {
+        background: #ff5f56;
+      }
+
+      .light.yellow {
+        background: #ffbd2e;
+      }
+
+      .light.green {
+        background: #27c93f;
+      }
+
+      .title {
+        color: #e5e5e5;
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 0.3px;
+      }
+
+      .connection-status {
+        margin-left: auto;
+        font-size: 11px;
+        color: #888;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .connection-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #666;
+      }
+
+      .connection-dot.connected {
+        background: #27c93f;
+      }
+
+      #terminal-container {
+        flex: 1;
+        background: #1e1e1e;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Ensure terminal canvas can handle scrolling */
+      #terminal-container canvas {
+        display: block;
+      }
+
+    </style>
+  </head>
+  <body>
+    <div class="terminal-window">
+      <div class="title-bar">
+        <div class="traffic-lights">
+          <span class="light red"></span>
+          <span class="light yellow"></span>
+          <span class="light green"></span>
+        </div>
+        <div class="title">ghostty-web</div>
+        <span id="font-test" style="font-family: 'FiraCode Nerd Font Mono', monospace; margin-left: 10px; color: #888;"></span>
+        <div class="connection-status">
+          <span class="connection-dot" id="connection-dot"></span>
+          <span id="connection-text">Disconnected</span>
+        </div>
+      </div>
+      <div id="terminal-container"></div>
+    </div>
+
+    <script type="module">
+      import { init, Terminal } from '../lib/index.ts';
+      import { FitAddon } from '../lib/addons/fit.ts';
+
+      let term;
+      let ws;
+      let fitAddon;
+
+      async function initTerminal() {
+        // Wait for fonts to be ready before initializing terminal
+        await document.fonts.ready;
+
+        // Try to load the specific font we need
+        const fontName = 'FiraCode Nerd Font Mono';
+        try {
+          await document.fonts.load('14px "' + fontName + '"');
+          const loaded = document.fonts.check('14px "' + fontName + '"');
+          console.log('[Font]', fontName, 'loaded:', loaded);
+
+          // List all fonts the browser knows about
+          const allFonts = [];
+          document.fonts.forEach(f => allFonts.push(`${f.family} (${f.status})`));
+          console.log('[Font] All fonts:', allFonts);
+
+          // Show font test icons in title bar
+          const fontTest = document.getElementById('font-test');
+          fontTest.textContent = [0xf07b, 0xe0a0, 0xe718, 0xe73c, 0x276f].map(cp => String.fromCodePoint(cp)).join(' ');
+        } catch (e) {
+          console.warn('Could not preload font:', e);
+        }
+
+        // Initialize WASM
+        await init();
+
+        // Check URL params for renderer selection: ?renderer=webgl or ?renderer=canvas
+        const urlParams = new URLSearchParams(window.location.search);
+        const rendererType = urlParams.get('renderer') || 'canvas'; // Default to canvas
+        console.log('[Demo] Using renderer:', rendererType);
+        
+        // Update title to show renderer type
+        const titleEl = document.querySelector('.title');
+        titleEl.textContent = `ghostty-web demo (${rendererType.toUpperCase()})`;
+
+        term = new Terminal({
+          cursorBlink: true,
+          fontSize: 13,
+          fontFamily: 'FiraCode Nerd Font Mono, Monaco, Menlo, monospace',
+          lineHeight: 1.15,
+          theme: {
+            background: '#1e1e1e',
+            foreground: '#d4d4d4',
+          },
+          scrollback: 10000,
+          graphics: {
+            enabled: true,
+          },
+          renderer: rendererType, // 'canvas' or 'webgl'
+        });
+
+        fitAddon = new FitAddon();
+        term.loadAddon(fitAddon);
+
+        term.open(document.getElementById('terminal-container'));
+
+        // Initial fit
+        fitAddon.fit();
+        console.log('[Demo] Initial fit:', term.cols, 'x', term.rows);
+
+        // Observe container resize
+        fitAddon.observeResize();
+
+        // Handle window resize with debouncing
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+          clearTimeout(resizeTimeout);
+          resizeTimeout = setTimeout(() => {
+            const container = document.getElementById('terminal-container');
+            console.log('[Demo] Window resize, container size:', container.clientWidth, 'x', container.clientHeight);
+            fitAddon.fit();
+            console.log('[Demo] After fit:', term.cols, 'x', term.rows);
+          }, 100);
+        });
+
+        // Handle terminal resize
+        term.onResize((size) => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            // Send resize as control sequence (server expects this format)
+            ws.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows }));
+          }
+        });
+
+        // Handle user input
+        term.onData((data) => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(data);
+          }
+        });
+
+        // Debug scrollback
+        console.log('Terminal scrollback:', term.buffer?.scrollback?.length || 'N/A');
+        term.onScroll((ydisp) => {
+          console.log('Scroll position:', ydisp);
+        });
+
+        // Connect to PTY server - terminal is ready immediately after open()
+        console.log('[Demo] Terminal ready, connecting with size:', term.cols, 'x', term.rows);
+        connectWebSocket();
+      }
+
+      function connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws?cols=${term.cols}&rows=${term.rows}`;
+
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          console.log('WebSocket connected');
+          updateConnectionStatus(true);
+        };
+
+        ws.onmessage = (event) => {
+          // Server sends raw strings, not JSON
+          term.write(event.data);
+        };
+
+        ws.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          updateConnectionStatus(false);
+        };
+
+        ws.onclose = () => {
+          console.log('WebSocket disconnected');
+          updateConnectionStatus(false);
+
+          // Attempt to reconnect after 3 seconds
+          setTimeout(() => {
+            if (!ws || ws.readyState === WebSocket.CLOSED) {
+              connectWebSocket();
+            }
+          }, 3000);
+        };
+      }
+
+      function updateConnectionStatus(connected) {
+        const dot = document.getElementById('connection-dot');
+        const text = document.getElementById('connection-text');
+
+        if (connected) {
+          dot.classList.add('connected');
+          text.textContent = 'Connected';
+        } else {
+          dot.classList.remove('connected');
+          text.textContent = 'Disconnected';
+        }
+      }
+
+      // Initialize on load
+      initTerminal();
+    </script>
+  </body>
+</html>

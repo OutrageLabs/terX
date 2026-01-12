@@ -1,0 +1,40 @@
+{
+  "name": "terx",
+  "version": "0.1.1",
+  "description": "Cross-platform SSH client with GPU-accelerated rendering",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:build:windows": "tauri build --target x86_64-pc-windows-gnu",
+    "tauri:build:macos": "tauri build",
+    "tauri:build:linux": "./scripts/build-linux.sh"
+  },
+  "dependencies": {
+    "@kofany/beamterm-terx": "^0.12.2",
+    "@supabase/supabase-js": "^2.90.1",
+    "@tauri-apps/api": "^2.5.0",
+    "@tauri-apps/plugin-deep-link": "^2.4.6",
+    "@tauri-apps/plugin-opener": "^2.5.3",
+    "cross": "^1.0.0",
+    "harfbuzzjs": "^0.4.2",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.5.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@tauri-apps/cli": "^2.5.0",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3",
+    "vite": "^6.3.5"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OutrageLabs/terX.git"
+  }
+}
