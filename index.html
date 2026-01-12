@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>terX</title>
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body class="h-full bg-base text-text font-sans antialiased">
+    <!-- App Root -->
+    <div id="app" class="h-full flex flex-col">
+      <!-- Main Content Area -->
+      <div id="main-content" class="flex-1 flex min-h-0">
+        <!-- Terminal Area (pełna szerokość, sidebar jest overlayem) -->
+        <main class="flex-1 flex flex-col min-w-0">
+          <!-- Tab Bar for multiple sessions -->
+          <div id="tab-bar" class="tab-bar hidden"></div>
+          <!-- Terminal Container (relative for absolute positioned panes) -->
+          <div id="terminal-container" class="flex-1 min-h-0 bg-base relative"></div>
+        </main>
+      </div>
+
+      <!-- Status Bar -->
+      <footer id="statusbar" class="statusbar">
+        <div class="statusbar-section">
+          <!-- Sidebar Toggle -->
+          <button id="sidebar-toggle" class="statusbar-btn" title="Hosts (Ctrl+H)">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          <!-- Connection Status -->
+          <div class="statusbar-item">
+            <span class="statusbar-label">Status</span>
+            <div id="status-indicator" class="statusbar-value">
+              <span id="status-dot" class="statusbar-dot"></span>
+              <span id="status-text">Initializing...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Theme Switcher (Center) -->
+        <div class="statusbar-section theme-switcher">
+          <button id="theme-prev" class="statusbar-btn" title="Previous theme">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <span id="theme-name" class="theme-switcher-name">Theme</span>
+          <button id="theme-next" class="statusbar-btn" title="Next theme">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
+
+        <div class="statusbar-section">
+          <!-- Renderer Type -->
+          <div class="statusbar-item">
+            <span class="statusbar-label">Renderer</span>
+            <span id="renderer-type" class="statusbar-value">---</span>
+          </div>
+
+          <!-- Font Size -->
+          <div class="statusbar-item">
+            <span class="statusbar-label">Font</span>
+            <span id="font-size" class="statusbar-value">--px</span>
+          </div>
+
+          <!-- Debug Button -->
+          <button id="debug-btn" class="statusbar-btn-debug" title="Open Debug Window (F3)">
+            Debug
+          </button>
+
+          <!-- Selection Mode Toggle -->
+          <button id="selection-mode-btn" class="statusbar-btn" title="Selection mode: Shift+Click (click to toggle)">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z"/>
+            </svg>
+            <span id="selection-mode-label" class="statusbar-mode-label">⇧</span>
+          </button>
+
+          <!-- Settings Toggle -->
+          <button id="settings-toggle" class="statusbar-btn" title="Settings (Ctrl+,)">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- UI Overlays Container (dialogs, modals) -->
+    <div id="ui-root"></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

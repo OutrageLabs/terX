@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "paths": {
+      "ghostty-web": ["./ghostty-web/lib/index.ts"],
+      "ghostty-web/*": ["./ghostty-web/lib/*"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

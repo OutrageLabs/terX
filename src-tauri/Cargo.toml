@@ -1,0 +1,54 @@
+[package]
+name = "terx"
+version = "0.1.1"
+description = "Cross-platform terminal emulator powered by Ghostty WASM"
+authors = ["OutrageLabs"]
+license = "MIT"
+repository = "https://github.com/OutrageLabs/terX"
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.5.3", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.9.5", features = [] }
+tauri-plugin-log = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-deep-link = "2"
+tauri-plugin-single-instance = "2"
+portable-pty = "0.9"
+tokio = { version = "1", features = ["sync", "io-util", "rt-multi-thread", "macros", "net"] }
+parking_lot = "0.12"
+chrono = "0.4"
+dirs = "6.0"
+
+# SSH client
+russh = "0.48"
+russh-keys = "0.48"
+ssh-key = "0.6"
+async-trait = "0.1"
+
+# Credential management
+keyring = "3"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+aes-gcm = "0.10"
+base64 = "0.22"
+sha2 = "0.10"
+pbkdf2 = { version = "0.12", features = ["simple"] }
+hex = "0.4"
+
+# Async utilities
+futures = "0.3"
+
+# Error handling & utilities
+thiserror = "2"
+rand = "0.8"
+uuid = { version = "1", features = ["v4"] }
