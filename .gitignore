@@ -23,3 +23,5 @@ src-tauri/target/
 
 # Bun
 bun.lockb
+memory.db-shm
+memory.db-wal

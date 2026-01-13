@@ -786,7 +786,22 @@ export class BeamtermRendererAdapter implements IRenderer {
     // Re-enable selection after resize (required by beamterm)
     this.enableSelectionMode();
 
-    console.log(`[BeamtermRenderer] resize: ${cols}x${rows} cells, ${physicalWidth}x${physicalHeight}px physical, ${cssWidth.toFixed(1)}x${cssHeight.toFixed(1)}px CSS, DPR=${dpr}`);
+    // Validate that canvas dimensions were set correctly
+    if (this.canvas.width !== physicalWidth || this.canvas.height !== physicalHeight) {
+      console.warn('[BeamtermRenderer] resize: canvas buffer dimension mismatch!', {
+        expected: { w: physicalWidth, h: physicalHeight },
+        actual: { w: this.canvas.width, h: this.canvas.height },
+      });
+    }
+
+    const actualCssWidth = parseFloat(this.canvas.style.width);
+    const actualCssHeight = parseFloat(this.canvas.style.height);
+    if (Math.abs(actualCssWidth - cssWidth) > 0.5 || Math.abs(actualCssHeight - cssHeight) > 0.5) {
+      console.warn('[BeamtermRenderer] resize: canvas CSS dimension mismatch!', {
+        expected: { w: cssWidth, h: cssHeight },
+        actual: { w: actualCssWidth, h: actualCssHeight },
+      });
+    }
   }
 
   /**

@@ -71,7 +71,7 @@ pub struct OwnSupabaseConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            mode: "local".to_string(),
+            mode: String::new(),  // Empty = first run, show storage selector
             locale: "en-US".to_string(),
             theme: "catppuccin-mocha".to_string(),
             ui_font_size: 14,
@@ -303,6 +303,8 @@ async fn ssh_connect(
     username: String,
     password: Option<String>,
     key_path: Option<String>,
+    key_data: Option<String>,
+    key_passphrase: Option<String>,
     terminal_type: Option<String>,
     cols: Option<u32>,
     rows: Option<u32>,
@@ -315,10 +317,18 @@ async fn ssh_connect(
     let rows = rows.unwrap_or(24);
 
     // Determine authentication method
-    let auth = if let Some(key) = key_path {
+    // Priority: key_data > key_path > password
+    let auth = if let Some(data) = key_data {
+        // SSH key data (content of private key)
+        ssh::AuthMethod::Key {
+            key_data: data,
+            passphrase: key_passphrase,
+        }
+    } else if let Some(key) = key_path {
+        // SSH key file path
         ssh::AuthMethod::KeyFile {
             path: key,
-            passphrase: None,
+            passphrase: key_passphrase,
         }
     } else if let Some(pass) = password {
         ssh::AuthMethod::Password(pass)

@@ -44,6 +44,7 @@ export class FitAddon implements ITerminalAddon {
   private _lastCols?: number;
   private _lastRows?: number;
   private _isResizing: boolean = false;
+  private _pendingResize: boolean = false; // Track if resize was requested during _isResizing
 
   /**
    * Activate the addon (called by Terminal.loadAddon)
@@ -76,21 +77,29 @@ export class FitAddon implements ITerminalAddon {
   }
 
   /**
+   * Invalidate cached dimensions.
+   * Call this when font size or DPR changes to force recalculation.
+   */
+  public invalidateCache(): void {
+    this._lastCols = undefined;
+    this._lastRows = undefined;
+  }
+
+  /**
    * Fit the terminal to its container
    *
    * Calculates optimal dimensions and resizes the terminal.
    * Does nothing if dimensions cannot be calculated or haven't changed.
    */
   public fit(): void {
-    // Prevent re-entrant calls during resize
+    // Prevent re-entrant calls during resize - but track pending request
     if (this._isResizing) {
-      console.log('[FitAddon] fit() blocked by _isResizing');
+      this._pendingResize = true;
       return;
     }
 
     const dims = this.proposeDimensions();
     if (!dims || !this._terminal) {
-      console.log('[FitAddon] fit() - no dims or terminal');
       return;
     }
 
@@ -99,27 +108,18 @@ export class FitAddon implements ITerminalAddon {
     const currentCols = terminal.cols;
     const currentRows = terminal.rows;
 
-    // DEBUG: Log all dimensions
-    const el = this._terminal.element;
-    console.log('[FitAddon] fit() check:', {
-      proposed: dims,
-      current: { cols: currentCols, rows: currentRows },
-      last: { cols: this._lastCols, rows: this._lastRows },
-      container: el ? { clientW: el.clientWidth, clientH: el.clientHeight } : null,
-    });
-
     // Check if dimensions actually changed (prevent feedback loops)
     // Compare against BOTH proposed dimensions AND current terminal dimensions
     if (
       (dims.cols === this._lastCols && dims.rows === this._lastRows) ||
       (dims.cols === currentCols && dims.rows === currentRows)
     ) {
-      console.log('[FitAddon] fit() - dimensions unchanged, skipping');
       return;
     }
 
     // Set flag to prevent re-entrant calls
     this._isResizing = true;
+    this._pendingResize = false;
 
     try {
       // Resize terminal
@@ -128,22 +128,18 @@ export class FitAddon implements ITerminalAddon {
         // Store dimensions AFTER successful resize
         this._lastCols = dims.cols;
         this._lastRows = dims.rows;
-        console.log('[FitAddon] fit() - resized to', dims.cols, 'x', dims.rows);
       }
     } catch (err) {
       console.error('[FitAddon] fit() - resize failed:', err);
     } finally {
-      // Clear flag after a short delay to allow DOM to settle
-      // Then check if another fit() is needed (in case events were missed during _isResizing)
-      setTimeout(() => {
-        this._isResizing = false;
-        // Re-check dimensions in case container changed while we were blocked
-        const newDims = this.proposeDimensions();
-        if (newDims && (newDims.cols !== this._lastCols || newDims.rows !== this._lastRows)) {
-          console.log('[FitAddon] fit() - detected pending resize after unlock, scheduling');
-          this.fit();
-        }
-      }, 50);
+      // Clear flag immediately - no more setTimeout delay
+      this._isResizing = false;
+
+      // Process pending resize if any (using microtask to avoid stack overflow)
+      if (this._pendingResize) {
+        this._pendingResize = false;
+        queueMicrotask(() => this.fit());
+      }
     }
   }
 
@@ -237,21 +233,12 @@ export class FitAddon implements ITerminalAddon {
 
     // Create ResizeObserver that watches for external size changes
     this._resizeObserver = new ResizeObserver((entries) => {
-      // Ignore resize events while we're actively resizing
-      if (this._isResizing) {
-        console.log('[FitAddon] ResizeObserver - blocked by _isResizing');
-        return;
-      }
-
       // Only trigger if the observed element's content rect changed
       const entry = entries[0];
       if (!entry) return;
 
-      console.log('[FitAddon] ResizeObserver triggered:', {
-        contentRect: { w: entry.contentRect.width, h: entry.contentRect.height },
-      });
-
-      // Debounce resize events
+      // Debounce resize events - don't block based on _isResizing,
+      // let debounce handle rapid calls naturally
       if (this._resizeDebounceTimer) {
         clearTimeout(this._resizeDebounceTimer);
       }

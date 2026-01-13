@@ -113,8 +113,9 @@ export async function loadConfig(): Promise<StorageConfig> {
     return config;
   } catch (error) {
     console.warn("[local-storage] Failed to load config:", error);
+    // Return undefined mode to force storage selector on first run
     return {
-      mode: "local",
+      mode: undefined as unknown as StorageMode,
       locale: "en-US",
       theme: "catppuccin-mocha",
       uiFontSize: 14,
