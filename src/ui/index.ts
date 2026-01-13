@@ -59,3 +59,20 @@ export {
   destroyTabBar,
   type TabBarOptions,
 } from "./tabs";
+
+// Emoji picker
+export {
+  showEmojiPicker,
+  hideEmojiPicker,
+  toggleEmojiPicker,
+  isEmojiPickerOpen,
+  type EmojiPickerOptions,
+} from "./emoji-picker";
+
+// Shortcuts help
+export {
+  showShortcutsHelp,
+  hideShortcutsHelp,
+  toggleShortcutsHelp,
+  isShortcutsHelpOpen,
+} from "./shortcuts-help";

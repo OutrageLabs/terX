@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-01-13
+
+### Added
+- Emoji picker with cross-platform support (emoji-picker-element)
+- Emoji button in status bar (centered)
+- Keyboard shortcut Ctrl+Shift+E to open emoji picker
+- Help popup with keyboard shortcuts (F1 or ? button)
+- Status bar UI hints in help popup
+
 ## [0.1.2] - 2026-01-13
 
 ### Fixed
