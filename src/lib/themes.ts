@@ -5,6 +5,8 @@
  * Themes can be changed at runtime without restart.
  */
 
+import { GHOSTTY_THEMES } from './ghostty-themes';
+
 // =============================================================================
 // Terminal Theme Interface (matches ghostty-web Terminal theme)
 // =============================================================================
@@ -636,18 +638,21 @@ export const BUNDLED_THEMES: Theme[] = [
 // Current applied theme
 let currentTheme: Theme = BUNDLED_THEMES[0]; // Default to Catppuccin Mocha
 
+// Combined themes: bundled + ghostty
+const ALL_THEMES: Theme[] = [...BUNDLED_THEMES, ...GHOSTTY_THEMES];
+
 /**
  * Get theme by ID
  */
 export function getThemeById(id: string): Theme | undefined {
-  return BUNDLED_THEMES.find(t => t.id === id);
+  return ALL_THEMES.find(t => t.id === id);
 }
 
 /**
  * Get all available themes
  */
 export function getAllThemes(): Theme[] {
-  return BUNDLED_THEMES;
+  return ALL_THEMES;
 }
 
 /**

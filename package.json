@@ -1,6 +1,6 @@
 {
   "name": "terx",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Cross-platform SSH client with GPU-accelerated rendering",
   "type": "module",
   "scripts": {
@@ -15,7 +15,7 @@
     "tauri:build:linux": "./scripts/build-linux.sh"
   },
   "dependencies": {
-    "@kofany/beamterm-terx": "^0.12.2",
+    "@kofany/beamterm-terx": "^0.12.12",
     "@supabase/supabase-js": "^2.90.1",
     "@tauri-apps/api": "^2.5.0",
     "@tauri-apps/plugin-deep-link": "^2.4.6",

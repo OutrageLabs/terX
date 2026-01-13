@@ -398,14 +398,20 @@ async function main(): Promise<void> {
     try {
       // Get password or key for connection
       let password: string | undefined;
-      let keyPath: string | undefined;
+      let keyData: string | undefined;
+      let keyPassphrase: string | undefined;
 
       if (host.auth_type === 'password' && host.password_id) {
         const passwords = await storage.getPasswords();
         const pwd = passwords.find(p => p.id === host.password_id);
         password = pwd?.password;
       } else if (host.auth_type === 'key' && host.key_id) {
-        // TODO: SSH key auth
+        const keys = await storage.getKeys();
+        const key = keys.find(k => k.id === host.key_id);
+        if (key) {
+          keyData = key.key_data;
+          keyPassphrase = key.passphrase || undefined;
+        }
       }
 
       // Get terminal size from a temporary measurement
@@ -430,7 +436,8 @@ async function main(): Promise<void> {
         port: parseInt(host.port) || 22,
         username: host.login,
         password,
-        keyPath,
+        keyData,
+        keyPassphrase,
         terminalType: 'xterm-ghostty',
         cols,
         rows,
@@ -695,7 +702,7 @@ async function main(): Promise<void> {
   // Font Resize with Cmd+/Cmd-
   // ============================================================================
   const MIN_FONT_SIZE = 8;
-  const MAX_FONT_SIZE = 32;
+  const MAX_FONT_SIZE = 42;
   const FONT_STEP = 1;
 
   window.addEventListener('keydown', (e) => {
@@ -724,6 +731,8 @@ async function main(): Promise<void> {
         // Apply to all terminals
         for (const session of sessionManager.getAllSessions()) {
           session.terminal.options.fontSize = newSize;
+          // Invalidate cache before fit - font change means cell dimensions changed
+          session.fitAddon.invalidateCache();
           session.fitAddon.fit();
         }
         updateIndicator('beamterm', newSize);
@@ -735,6 +744,9 @@ async function main(): Promise<void> {
         if (fontSizeDisplay) fontSizeDisplay.textContent = `${newSize}px`;
 
         console.log(`[terX] Font size: ${newSize}px`);
+
+        // Save to config so settings panel stays in sync
+        storage.saveConfig({ terminalFontSize: newSize });
       }
     }
   }, true);

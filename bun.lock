@@ -5,7 +5,7 @@
     "": {
       "name": "terx",
       "dependencies": {
-        "@kofany/beamterm-terx": "^0.12.2",
+        "@kofany/beamterm-terx": "^0.12.12",
         "@supabase/supabase-js": "^2.90.1",
         "@tauri-apps/api": "^2.5.0",
         "@tauri-apps/plugin-deep-link": "^2.4.6",
@@ -87,7 +87,7 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, ""],
 
-    "@kofany/beamterm-terx": ["@kofany/beamterm-terx@0.12.2", "", {}, "sha512-BCztA6l1eVQjpcOjvKcv/v1MMfvkqGt3dXq5itlgPI431HtJoMFj97ZKWx105y+O1VNj1zIt5VhECKHh0nV4dg=="],
+    "@kofany/beamterm-terx": ["@kofany/beamterm-terx@0.12.12", "", {}, "sha512-xQ0gooW/nuq9B0kg0odNpKU05BZULSEw1ITcQe6TXsvn+sL+PDeZuIhU+Kx1DUxwuVBFuaClwAGmxH1J4946wA=="],
 
     "@rollup/plugin-virtual": ["@rollup/plugin-virtual@3.0.2", "", { "peerDependencies": { "rollup": "^1.20.0||^2.0.0||^3.0.0||^4.0.0" } }, ""],
 
