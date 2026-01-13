@@ -11,6 +11,7 @@
         "@tauri-apps/plugin-deep-link": "^2.4.6",
         "@tauri-apps/plugin-opener": "^2.5.3",
         "cross": "^1.0.0",
+        "emoji-picker-element": "^1.28.1",
         "harfbuzzjs": "^0.4.2",
         "vite-plugin-top-level-await": "^1.6.0",
         "vite-plugin-wasm": "^3.5.0",
@@ -246,6 +247,8 @@
     "cross": ["cross@1.0.0", "", {}, ""],
 
     "detect-libc": ["detect-libc@2.1.2", "", {}, ""],
+
+    "emoji-picker-element": ["emoji-picker-element@1.28.1", "", {}, "sha512-8c64IPish2PWoV9oYCo2pvuPHwIv+uK9bO0dfpPyMupDAvaWL9ZvYhWNTAR+2sx7BhfRjciImqP6CIUgNX+DMg=="],
 
     "enhanced-resolve": ["enhanced-resolve@5.18.4", "", { "dependencies": { "graceful-fs": "^4.2.4", "tapable": "^2.2.0" } }, ""],
 

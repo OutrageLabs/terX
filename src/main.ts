@@ -31,6 +31,8 @@ import {
   toggleSettings,
   showHostEditDialog,
   initTabBar,
+  toggleEmojiPicker,
+  toggleShortcutsHelp,
 } from './ui';
 import * as storage from './lib/storage';
 import type { HostWithRelations } from './lib/storage';
@@ -559,6 +561,12 @@ async function main(): Promise<void> {
     sidebarToggleBtn.addEventListener('click', uiToggleSidebar);
   }
 
+  // Help / shortcuts button
+  const helpBtn = document.getElementById('help-btn');
+  if (helpBtn) {
+    helpBtn.addEventListener('click', toggleShortcutsHelp);
+  }
+
   // Settings toggle button
   const settingsToggleBtn = document.getElementById('settings-toggle');
   if (settingsToggleBtn) {
@@ -937,6 +945,14 @@ async function main(): Promise<void> {
     }
   });
 
+  // F1 to toggle shortcuts help
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'F1') {
+      e.preventDefault();
+      toggleShortcutsHelp();
+    }
+  });
+
   // Debug button click handler
   const debugBtn = document.getElementById('debug-btn');
   if (debugBtn) {
@@ -975,6 +991,47 @@ async function main(): Promise<void> {
       console.log(`[terX] Selection mode: ${selectionRequireShift ? 'Shift+Click' : 'Direct'}`);
     });
   }
+
+  // Emoji picker button
+  const emojiBtn = document.getElementById('emoji-btn');
+
+  const openEmojiPicker = () => {
+    const activeSession = sessionManager.getActiveSession();
+    if (!activeSession) {
+      console.log('[terX] No active session for emoji picker');
+      return;
+    }
+
+    toggleEmojiPicker({
+      onSelect: (emoji: string) => {
+        // Wyślij emoji do aktywnego terminala przez SSH
+        const encoder = new TextEncoder();
+        const bytes = Array.from(encoder.encode(emoji));
+        invoke('ssh_write', { sessionId: activeSession.id, data: bytes }).catch((err) => {
+          console.error('[terX] Failed to send emoji:', err);
+        });
+        // Focus terminal po wybraniu emoji
+        activeSession.container.focus();
+      },
+      anchor: emojiBtn || undefined,
+    });
+  };
+
+  if (emojiBtn) {
+    emojiBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      openEmojiPicker();
+    });
+  }
+
+  // Keyboard shortcut for emoji picker: Ctrl+Shift+E
+  window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && (e.key === 'e' || e.key === 'E')) {
+      e.preventDefault();
+      e.stopPropagation();
+      openEmojiPicker();
+    }
+  }, true); // capture phase to catch before terminal
 
   console.log('[terX] Press F3, Alt+D or click DEBUG button to open debug window');
 
