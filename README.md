@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-brightgreen)](https://github.com/OutrageLabs/terX/releases)
-[![Version](https://img.shields.io/badge/Version-0.1.0-orange)](https://github.com/OutrageLabs/terX/releases/tag/v0.1.0)
+[![Version](https://img.shields.io/badge/Version-0.1.4-orange)](https://github.com/OutrageLabs/terX/releases/tag/v0.1.4)
 
 **Secure SSH connections with GPU-accelerated terminal rendering**
 
@@ -21,6 +21,7 @@
 ## Features
 
 - **SSH Connection Manager** — Save, organize, and quickly connect to your servers
+- **SFTP File Manager** — Dual-pane Norton Commander-style file browser (Ctrl+F5)
 - **GPU-Accelerated Rendering** — WebGL2-powered terminal with sub-millisecond render times
 - **End-to-End Encryption** — All credentials encrypted with AES-256-GCM + PBKDF2
 - **Multiple Storage Options** — Local encrypted storage or terX Cloud sync
@@ -37,7 +38,11 @@
 </p>
 <p align="center">
   <img src="docs/screenshots/terminal.png" width="45%" alt="Terminal Session" />
+  <img src="docs/screenshots/filemanager.png" width="45%" alt="SFTP File Manager" />
+</p>
+<p align="center">
   <img src="docs/screenshots/settings.png" width="45%" alt="Settings Panel" />
+  <img src="docs/screenshots/storage.png" width="45%" alt="Storage Options" />
 </p>
 
 ## Download
