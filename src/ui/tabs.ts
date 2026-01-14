@@ -2,6 +2,7 @@
  * Tab Bar Component for terX Multi-Tab Terminal
  *
  * Renders and manages the terminal session tabs.
+ * Supports both terminal sessions and file manager tabs.
  */
 
 import { t } from '../i18n';
@@ -11,11 +12,32 @@ import {
   type SessionStatus,
   type SessionEventType,
 } from '../lib/session-manager';
+import {
+  isFileManagerTabId,
+  isFileManagerVisible,
+  onFileManagerEvent,
+  getFileManagerSshSessionId,
+  getFileManagerTabId,
+} from './file-manager';
+import { setConnectedHost } from './sidebar';
+
+// File manager tab info
+interface FileManagerTab {
+  id: string; // 'fm:{sshSessionId}'
+  sshSessionId: string;
+  hostName: string;
+}
+
+// Module state for file manager tabs
+let fileManagerTab: FileManagerTab | null = null;
+let activeTabId: string | null = null; // Może być session ID lub file manager tab ID
 
 // Tab bar options
 export interface TabBarOptions {
   onTabClick?: (sessionId: string) => void;
   onTabClose?: (sessionId: string) => void;
+  onFileManagerTabClick?: (tabId: string) => void;
+  onFileManagerTabClose?: (tabId: string) => void;
 }
 
 // Module state
@@ -40,8 +62,48 @@ export function initTabBar(opts: TabBarOptions = {}): void {
   // Subscribe to session manager events
   sessionManager.onSessionEvent(handleSessionEvent);
 
+  // Subscribe to file manager events
+  onFileManagerEvent(handleFileManagerEvent);
+
   // Initial render
   renderTabBar();
+}
+
+/**
+ * Handle file manager events
+ */
+function handleFileManagerEvent(
+  event: 'opened' | 'closed' | 'activated',
+  data?: { tabId?: string }
+): void {
+  if (event === 'opened' && data?.tabId) {
+    // Nowy file manager tab
+    const sshSessionId = data.tabId.substring(3); // Usuń 'fm:'
+    const session = sessionManager.getSession(sshSessionId);
+    fileManagerTab = {
+      id: data.tabId,
+      sshSessionId,
+      hostName: session?.hostName || 'Files',
+    };
+    activeTabId = data.tabId;
+    renderTabBar();
+  } else if (event === 'closed') {
+    fileManagerTab = null;
+    // Przywróć aktywny terminal tab
+    const activeSession = sessionManager.getActiveSession();
+    activeTabId = activeSession?.id || null;
+
+    // Jeśli nie ma żadnych aktywnych sesji SSH - wyczyść indicator w sidebarze
+    const allSessions = sessionManager.getAllSessions();
+    if (allSessions.length === 0) {
+      setConnectedHost(null);
+    }
+
+    renderTabBar();
+  } else if (event === 'activated' && data?.tabId) {
+    activeTabId = data.tabId;
+    renderTabBar();
+  }
 }
 
 /**
@@ -54,9 +116,19 @@ function handleTabClick(e: Event): void {
   const closeBtn = target.closest('[data-action="close-tab"]') as HTMLElement;
   if (closeBtn) {
     e.stopPropagation();
-    const sessionId = closeBtn.dataset.sessionId;
-    if (sessionId && options.onTabClose) {
-      options.onTabClose(sessionId);
+    const tabId = closeBtn.dataset.tabId || closeBtn.dataset.sessionId;
+    if (tabId) {
+      if (isFileManagerTabId(tabId)) {
+        // Close file manager tab
+        if (options.onFileManagerTabClose) {
+          options.onFileManagerTabClose(tabId);
+        }
+      } else {
+        // Close terminal tab
+        if (options.onTabClose) {
+          options.onTabClose(tabId);
+        }
+      }
     }
     return;
   }
@@ -64,9 +136,19 @@ function handleTabClick(e: Event): void {
   // Tab clicked
   const tab = target.closest('[data-action="switch-tab"]') as HTMLElement;
   if (tab) {
-    const sessionId = tab.dataset.sessionId;
-    if (sessionId && options.onTabClick) {
-      options.onTabClick(sessionId);
+    const tabId = tab.dataset.tabId || tab.dataset.sessionId;
+    if (tabId) {
+      if (isFileManagerTabId(tabId)) {
+        // Switch to file manager tab
+        if (options.onFileManagerTabClick) {
+          options.onFileManagerTabClick(tabId);
+        }
+      } else {
+        // Switch to terminal tab
+        if (options.onTabClick) {
+          options.onTabClick(tabId);
+        }
+      }
     }
   }
 }
@@ -81,8 +163,12 @@ function handleSessionEvent(
   switch (event) {
     case 'session-created':
     case 'session-closed':
-    case 'session-switched':
     case 'all-sessions-closed':
+      renderTabBar();
+      break;
+    case 'session-switched':
+      // Terminal session switched - zawsze aktualizuj active tab na terminal
+      activeTabId = data?.sessionId || null;
       renderTabBar();
       break;
     case 'session-status-changed':
@@ -100,9 +186,10 @@ export function renderTabBar(): void {
   if (!tabBarElement) return;
 
   const sessions = sessionManager.getAllSessions();
-  const activeId = sessionManager.activeSessionId;
+  const hasFileManager = fileManagerTab !== null;
+  const totalTabs = sessions.length + (hasFileManager ? 1 : 0);
 
-  if (sessions.length === 0) {
+  if (totalTabs === 0) {
     tabBarElement.innerHTML = '';
     tabBarElement.classList.add('hidden');
     return;
@@ -110,13 +197,21 @@ export function renderTabBar(): void {
 
   tabBarElement.classList.remove('hidden');
 
-  tabBarElement.innerHTML = sessions
-    .map((session) => renderTab(session, session.id === activeId))
+  // Render terminal tabs
+  const terminalTabs = sessions
+    .map((session) => renderTab(session, activeTabId === session.id))
     .join('');
+
+  // Render file manager tab (jeśli otwarty)
+  const fileManagerTabHtml = hasFileManager
+    ? renderFileManagerTab(fileManagerTab!, activeTabId === fileManagerTab!.id)
+    : '';
+
+  tabBarElement.innerHTML = terminalTabs + fileManagerTabHtml;
 }
 
 /**
- * Render a single tab
+ * Render a single terminal tab
  */
 function renderTab(session: TerminalSession, isActive: boolean): string {
   const statusClass = getStatusClass(session.status);
@@ -126,6 +221,7 @@ function renderTab(session: TerminalSession, isActive: boolean): string {
   return `
     <div
       class="terminal-tab ${activeClass}"
+      data-tab-id="${session.id}"
       data-session-id="${session.id}"
       data-action="switch-tab"
       title="${session.hostInfo.login}@${session.hostInfo.ip}"
@@ -135,7 +231,41 @@ function renderTab(session: TerminalSession, isActive: boolean): string {
       <button
         class="terminal-tab-close"
         data-action="close-tab"
+        data-tab-id="${session.id}"
         data-session-id="${session.id}"
+        title="${t('tabs.closeTab')}"
+      >
+        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+  `;
+}
+
+/**
+ * Render file manager tab
+ */
+function renderFileManagerTab(tab: FileManagerTab, isActive: boolean): string {
+  const activeClass = isActive ? 'terminal-tab-active' : '';
+
+  return `
+    <div
+      class="terminal-tab terminal-tab-fm ${activeClass}"
+      data-tab-id="${tab.id}"
+      data-action="switch-tab"
+      title="${t('fileManager.title') || 'File Manager'}: ${tab.hostName}"
+    >
+      <span class="terminal-tab-icon">
+        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+      </span>
+      <span class="terminal-tab-name">${escapeHtml(tab.hostName)} - Files</span>
+      <button
+        class="terminal-tab-close"
+        data-action="close-tab"
+        data-tab-id="${tab.id}"
         title="${t('tabs.closeTab')}"
       >
         <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -208,8 +338,10 @@ function escapeHtml(text: string): string {
 /**
  * Set active tab visually (called by session manager event)
  */
-export function setActiveTab(sessionId: string): void {
+export function setActiveTab(tabId: string): void {
   if (!tabBarElement) return;
+
+  activeTabId = tabId;
 
   // Remove active class from all tabs
   tabBarElement.querySelectorAll('.terminal-tab').forEach((tab) => {
@@ -217,10 +349,24 @@ export function setActiveTab(sessionId: string): void {
   });
 
   // Add active class to target tab
-  const tab = tabBarElement.querySelector(`[data-session-id="${sessionId}"]`);
+  const tab = tabBarElement.querySelector(`[data-tab-id="${tabId}"]`);
   if (tab) {
     tab.classList.add('terminal-tab-active');
   }
+}
+
+/**
+ * Get current active tab ID
+ */
+export function getActiveTabId(): string | null {
+  return activeTabId;
+}
+
+/**
+ * Check if file manager tab is active
+ */
+export function isFileManagerTabActive(): boolean {
+  return activeTabId !== null && isFileManagerTabId(activeTabId);
 }
 
 /**
