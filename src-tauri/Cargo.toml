@@ -33,6 +33,7 @@ dirs = "6.0"
 # SSH client
 russh = "0.48"
 russh-keys = "0.48"
+russh-sftp = "2.1"
 ssh-key = "0.6"
 async-trait = "0.1"
 

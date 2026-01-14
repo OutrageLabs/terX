@@ -31,8 +31,15 @@ import {
   toggleSettings,
   showHostEditDialog,
   initTabBar,
+  setActiveTab,
   toggleEmojiPicker,
   toggleShortcutsHelp,
+  initFileManager,
+  showFileManager,
+  hideFileManager,
+  activateFileManager,
+  deactivateFileManager,
+  isFileManagerVisible,
 } from './ui';
 import * as storage from './lib/storage';
 import type { HostWithRelations } from './lib/storage';
@@ -372,6 +379,66 @@ async function main(): Promise<void> {
   }
 
   // ============================================================================
+  // SSH Key Validation Helper
+  // ============================================================================
+  function validateSSHKey(keyData: string): { valid: boolean; error?: string } {
+    if (!keyData || keyData.trim().length === 0) {
+      return { valid: false, error: 'SSH key is empty' };
+    }
+
+    const validHeaders = [
+      '-----BEGIN OPENSSH PRIVATE KEY-----',
+      '-----BEGIN RSA PRIVATE KEY-----',
+      '-----BEGIN EC PRIVATE KEY-----',
+      '-----BEGIN DSA PRIVATE KEY-----',
+      '-----BEGIN PRIVATE KEY-----',
+    ];
+
+    const hasValidHeader = validHeaders.some(header => keyData.includes(header));
+
+    if (!hasValidHeader) {
+      return {
+        valid: false,
+        error: 'Invalid SSH key format. Key must be in PEM format (OpenSSH, RSA, EC, or DSA). Make sure the key starts with "-----BEGIN ... PRIVATE KEY-----"'
+      };
+    }
+
+    return { valid: true };
+  }
+
+  // ============================================================================
+  // Auth Preparation Helper
+  // ============================================================================
+  interface AuthParams {
+    password?: string;
+    keyData?: string;
+    keyPassphrase?: string;
+  }
+
+  async function prepareAuthParams(host: HostWithRelations): Promise<AuthParams> {
+    if (host.auth_type === 'password' && host.password_id) {
+      const passwords = await storage.getPasswords();
+      const pwd = passwords.find(p => p.id === host.password_id);
+      return { password: pwd?.password };
+    } else if (host.auth_type === 'key' && host.key_id) {
+      const keys = await storage.getKeys();
+      const key = keys.find(k => k.id === host.key_id);
+      if (key) {
+        // Validate key format before returning
+        const validation = validateSSHKey(key.key_data);
+        if (!validation.valid) {
+          throw new Error(validation.error);
+        }
+        return {
+          keyData: key.key_data,
+          keyPassphrase: key.passphrase || undefined
+        };
+      }
+    }
+    return {};
+  }
+
+  // ============================================================================
   // Connect to Host (Multi-Session)
   // ============================================================================
   async function connectToHost(host: HostWithRelations): Promise<void> {
@@ -398,23 +465,8 @@ async function main(): Promise<void> {
     updateStatus(`Connecting to ${host.name}...`, false);
 
     try {
-      // Get password or key for connection
-      let password: string | undefined;
-      let keyData: string | undefined;
-      let keyPassphrase: string | undefined;
-
-      if (host.auth_type === 'password' && host.password_id) {
-        const passwords = await storage.getPasswords();
-        const pwd = passwords.find(p => p.id === host.password_id);
-        password = pwd?.password;
-      } else if (host.auth_type === 'key' && host.key_id) {
-        const keys = await storage.getKeys();
-        const key = keys.find(k => k.id === host.key_id);
-        if (key) {
-          keyData = key.key_data;
-          keyPassphrase = key.passphrase || undefined;
-        }
-      }
+      // Get auth credentials (validates key format if using key auth)
+      const { password, keyData, keyPassphrase } = await prepareAuthParams(host);
 
       // Get terminal size from a temporary measurement
       const tempTerminal = new Terminal({
@@ -461,15 +513,72 @@ async function main(): Promise<void> {
       updateStatus(`Connected to ${host.name}`, true);
 
     } catch (error) {
-      const err = error as Error;
-      updateStatus(`SSH Error`, false);
+      // Tauri errors can be strings or Error objects
+      const errorMessage = typeof error === 'string' ? error : (error as Error)?.message || String(error);
+      updateStatus(`SSH Error: ${errorMessage.substring(0, 50)}`, false);
       console.error('[terX] SSH connection failed:', error);
 
-      // Show error in a temporary terminal or alert
-      // For now just log it
+      // Show error to user
+      alert(`SSH Connection Error:\n\n${errorMessage}`);
+
       if (sessionManager.sessionCount === 0) {
         showWelcomeScreen();
       }
+    } finally {
+      isConnecting = false;
+    }
+  }
+
+  // ============================================================================
+  // Connect to Host for File Transfer (SFTP only, no terminal)
+  // ============================================================================
+  async function connectToHostTransfer(host: HostWithRelations): Promise<void> {
+    if (isConnecting) {
+      console.log('[terX] Connection already in progress, ignoring click');
+      return;
+    }
+
+    isConnecting = true;
+    hideSidebar();
+    hideWelcomeScreen();
+
+    updateStatus(`Connecting to ${host.name} (Transfer)...`, false);
+
+    try {
+      // Get auth credentials (validates key format if using key auth)
+      const { password, keyData, keyPassphrase } = await prepareAuthParams(host);
+
+      // Connect SSH (will be used only for SFTP, not PTY)
+      const sshSessionId = await invoke<string>('ssh_connect', {
+        host: host.ip,
+        port: parseInt(host.port) || 22,
+        username: host.login,
+        password,
+        keyData,
+        keyPassphrase,
+        terminalType: 'xterm-ghostty',
+        cols: 80,
+        rows: 24,
+      });
+
+      console.log(`[terX] SSH connected for transfer to ${host.name}, session: ${sshSessionId}`);
+
+      // Show file manager fullscreen with this session
+      await showFileManager(sshSessionId);
+
+      updateStatus(`Transfer: ${host.name}`, true);
+      setConnectedHost(host.id);
+
+    } catch (error) {
+      // Tauri errors can be strings or Error objects
+      const errorMessage = typeof error === 'string' ? error : (error as Error)?.message || String(error);
+      updateStatus(`Transfer Error: ${errorMessage.substring(0, 50)}`, false);
+      console.error('[terX] SSH connection for transfer failed:', error);
+
+      // Show error to user
+      alert(`SFTP Connection Error:\n\n${errorMessage}`);
+
+      showWelcomeScreen();
     } finally {
       isConnecting = false;
     }
@@ -511,7 +620,14 @@ async function main(): Promise<void> {
   // ============================================================================
   initTabBar({
     onTabClick: (sessionId) => {
+      // Deaktywuj file manager przy przełączeniu na terminal
+      deactivateFileManager();
+
       sessionManager.switchSession(sessionId);
+
+      // Jawnie ustaw aktywną kartę (terminal)
+      setActiveTab(sessionId);
+
       const session = sessionManager.getSession(sessionId);
       if (session) {
         if (session.status === 'connected') {
@@ -525,6 +641,24 @@ async function main(): Promise<void> {
     onTabClose: (sessionId) => {
       closeSession(sessionId);
     },
+    onFileManagerTabClick: (_tabId) => {
+      // Aktywuj file manager
+      activateFileManager();
+      updateStatus('File Manager', true);
+    },
+    onFileManagerTabClose: (_tabId) => {
+      // Zamknij file manager
+      hideFileManager();
+      // Przełącz na poprzednią sesję terminala
+      const activeSession = sessionManager.getActiveSession();
+      if (activeSession) {
+        sessionManager.switchSession(activeSession.id);
+        updateStatus(`Connected to ${activeSession.hostName}`, true);
+      } else {
+        // No terminal sessions - reset status
+        updateStatus('Ready - Press Ctrl+H', false);
+      }
+    },
   });
 
   // Listen for session events to update status
@@ -536,11 +670,15 @@ async function main(): Promise<void> {
     }
   });
 
+  // Initialize file manager
+  initFileManager();
+
   // ============================================================================
   // Sidebar Setup
   // ============================================================================
   createSidebar({
     onHostSelect: connectToHost,
+    onHostTransfer: connectToHostTransfer,
     onSettingsClick: async () => {
       await toggleSettings();
     },
@@ -619,6 +757,18 @@ async function main(): Promise<void> {
       const activeId = sessionManager.activeSessionId;
       if (activeId) {
         closeSession(activeId);
+      }
+    }
+    // F5 to toggle file manager (when connected)
+    if (e.key === 'F5' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      const activeSession = sessionManager.getActiveSession();
+      if (activeSession && activeSession.status === 'connected') {
+        e.preventDefault();
+        if (isFileManagerVisible()) {
+          // File manager handles its own close with Escape
+        } else {
+          showFileManager(activeSession.id);
+        }
       }
     }
   });
