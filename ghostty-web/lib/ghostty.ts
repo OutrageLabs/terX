@@ -480,7 +480,9 @@ export class GhosttyTerminal {
     if (count < 0) return this.cellPool;
 
     // Parse cells into pool (reuses existing objects)
-    this.parseCellsIntoPool(this.viewportBufferPtr, totalCells);
+    // CRITICAL: Use 'count' not 'totalCells' - WASM may not fill entire buffer
+    this.parseCellsIntoPool(this.viewportBufferPtr, count);
+
     return this.cellPool;
   }
 
