@@ -76,3 +76,19 @@ export {
   toggleShortcutsHelp,
   isShortcutsHelpOpen,
 } from "./shortcuts-help";
+
+// File manager
+export {
+  initFileManager,
+  showFileManager,
+  hideFileManager,
+  toggleFileManager,
+  isFileManagerVisible,
+  activateFileManager,
+  deactivateFileManager,
+  onFileManagerEvent,
+  getFileManagerTabId,
+  isFileManagerTabId,
+  getSshSessionIdFromTabId,
+  getFileManagerSshSessionId,
+} from "./file-manager";

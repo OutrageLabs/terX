@@ -1,4 +1,5 @@
 mod credentials;
+mod sftp;
 mod ssh;
 
 use std::collections::HashMap;
@@ -12,6 +13,10 @@ use tokio::sync::{mpsc, Mutex};
 pub struct AppState {
     // Active SSH sessions (session_id -> write sender)
     ssh_sessions: Mutex<HashMap<String, SshSessionHandle>>,
+    // Active SFTP sessions (sftp_session_id -> SFTP handle)
+    sftp_sessions: Mutex<HashMap<String, SftpSessionHandle>>,
+    // Active transfers (transfer_id -> cancel sender)
+    active_transfers: Mutex<HashMap<String, tokio::sync::watch::Sender<bool>>>,
     // Credentials manager
     credentials: Mutex<credentials::CredentialsManager>,
 }
@@ -19,12 +24,22 @@ pub struct AppState {
 struct SshSessionHandle {
     write_tx: mpsc::Sender<Vec<u8>>,
     resize_tx: mpsc::Sender<(u32, u32)>,
+    // SSH handle for creating additional channels (SFTP)
+    ssh_handle: Arc<russh::client::Handle<ssh::SshHandler>>,
+}
+
+struct SftpSessionHandle {
+    sftp: Arc<russh_sftp::client::SftpSession>,
+    #[allow(dead_code)] // Kept for future use (e.g., closing SSH when SFTP closes)
+    ssh_session_id: String,
 }
 
 impl Default for AppState {
     fn default() -> Self {
         Self {
             ssh_sessions: Mutex::new(HashMap::new()),
+            sftp_sessions: Mutex::new(HashMap::new()),
+            active_transfers: Mutex::new(HashMap::new()),
             credentials: Mutex::new(credentials::CredentialsManager::new()),
         }
     }
@@ -341,16 +356,19 @@ async fn ssh_connect(
         .await
         .map_err(|e| e.to_string())?;
 
+    // Get SSH handle for SFTP before moving session
+    let ssh_handle = session.handle();
+
     // Communication channels
     let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(256);
     let (resize_tx, mut resize_rx) = mpsc::channel::<(u32, u32)>(16);
 
-    // Save session handle
+    // Save session handle (including SSH handle for SFTP)
     {
         let mut sessions = state.ssh_sessions.lock().await;
         sessions.insert(
             session_id.clone(),
-            SshSessionHandle { write_tx, resize_tx },
+            SshSessionHandle { write_tx, resize_tx, ssh_handle },
         );
     }
 
@@ -498,16 +516,19 @@ async fn ssh_connect_host(
             .map_err(|e| e.to_string())?
     };
 
+    // Get SSH handle for SFTP before moving session
+    let ssh_handle = session.handle();
+
     // Communication channels
     let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(256);
     let (resize_tx, mut resize_rx) = mpsc::channel::<(u32, u32)>(16);
 
-    // Save session handle
+    // Save session handle (including SSH handle for SFTP)
     {
         let mut sessions = state.ssh_sessions.lock().await;
         sessions.insert(
             session_id.clone(),
-            SshSessionHandle { write_tx, resize_tx },
+            SshSessionHandle { write_tx, resize_tx, ssh_handle },
         );
     }
 
@@ -571,6 +592,416 @@ async fn ssh_connect_host(
 }
 
 // ============================================================================
+// SFTP Commands
+// ============================================================================
+
+/// Open SFTP session on existing SSH connection
+#[tauri::command]
+async fn sftp_open(
+    state: State<'_, Arc<AppState>>,
+    ssh_session_id: String,
+) -> Result<String, String> {
+    use uuid::Uuid;
+
+    // Get SSH handle from session
+    let ssh_handle = {
+        let sessions = state.ssh_sessions.lock().await;
+        sessions
+            .get(&ssh_session_id)
+            .map(|h| h.ssh_handle.clone())
+            .ok_or_else(|| format!("SSH session '{}' not found", ssh_session_id))?
+    };
+
+    // Create SFTP session
+    let sftp = ssh::create_sftp_session(&ssh_handle)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let sftp_session_id = Uuid::new_v4().to_string();
+
+    // Store SFTP session wrapped in Arc
+    {
+        let mut sftp_sessions = state.sftp_sessions.lock().await;
+        sftp_sessions.insert(
+            sftp_session_id.clone(),
+            SftpSessionHandle {
+                sftp: Arc::new(sftp),
+                ssh_session_id,
+            },
+        );
+    }
+
+    log::info!("SFTP session {} opened", sftp_session_id);
+    Ok(sftp_session_id)
+}
+
+/// Close SFTP session
+#[tauri::command]
+async fn sftp_close(
+    state: State<'_, Arc<AppState>>,
+    sftp_session_id: String,
+) -> Result<(), String> {
+    let mut sftp_sessions = state.sftp_sessions.lock().await;
+    if sftp_sessions.remove(&sftp_session_id).is_some() {
+        log::info!("SFTP session {} closed", sftp_session_id);
+        Ok(())
+    } else {
+        Err(format!("SFTP session '{}' not found", sftp_session_id))
+    }
+}
+
+/// List remote directory
+#[tauri::command]
+async fn sftp_list_dir(
+    state: State<'_, Arc<AppState>>,
+    sftp_session_id: String,
+    path: String,
+) -> Result<sftp::DirectoryListing, String> {
+    let sftp_sessions = state.sftp_sessions.lock().await;
+    let handle = sftp_sessions
+        .get(&sftp_session_id)
+        .ok_or_else(|| format!("SFTP session '{}' not found", sftp_session_id))?;
+
+    sftp::list_dir(&handle.sftp, &path)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Create remote directory
+#[tauri::command]
+async fn sftp_mkdir(
+    state: State<'_, Arc<AppState>>,
+    sftp_session_id: String,
+    path: String,
+) -> Result<(), String> {
+    let sftp_sessions = state.sftp_sessions.lock().await;
+    let handle = sftp_sessions
+        .get(&sftp_session_id)
+        .ok_or_else(|| format!("SFTP session '{}' not found", sftp_session_id))?;
+
+    sftp::mkdir(&handle.sftp, &path)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Remove remote file or directory
+#[tauri::command]
+async fn sftp_remove(
+    state: State<'_, Arc<AppState>>,
+    sftp_session_id: String,
+    path: String,
+    recursive: bool,
+) -> Result<(), String> {
+    let sftp_sessions = state.sftp_sessions.lock().await;
+    let handle = sftp_sessions
+        .get(&sftp_session_id)
+        .ok_or_else(|| format!("SFTP session '{}' not found", sftp_session_id))?;
+
+    sftp::remove(&handle.sftp, &path, recursive)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Rename remote file or directory
+#[tauri::command]
+async fn sftp_rename(
+    state: State<'_, Arc<AppState>>,
+    sftp_session_id: String,
+    old_path: String,
+    new_path: String,
+) -> Result<(), String> {
+    let sftp_sessions = state.sftp_sessions.lock().await;
+    let handle = sftp_sessions
+        .get(&sftp_session_id)
+        .ok_or_else(|| format!("SFTP session '{}' not found", sftp_session_id))?;
+
+    sftp::rename(&handle.sftp, &old_path, &new_path)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Download file from remote to local
+#[tauri::command]
+async fn sftp_download(
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+    sftp_session_id: String,
+    remote_path: String,
+    local_path: String,
+    transfer_id: String,
+) -> Result<(), String> {
+    // Create cancellation channel
+    let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
+
+    // Store cancel sender
+    {
+        let mut transfers = state.active_transfers.lock().await;
+        transfers.insert(transfer_id.clone(), cancel_tx);
+    }
+
+    // Get SFTP session (need to clone for async block)
+    let sftp = {
+        let sftp_sessions = state.sftp_sessions.lock().await;
+        let handle = sftp_sessions
+            .get(&sftp_session_id)
+            .ok_or_else(|| format!("SFTP session '{}' not found", sftp_session_id))?;
+        handle.sftp.clone()
+    };
+
+    let app_clone = app.clone();
+    let tid = transfer_id.clone();
+    let rp = remote_path.clone();
+    let lp = local_path.clone();
+    let state_clone = state.inner().clone();
+
+    // Spawn download task
+    tokio::spawn(async move {
+        // Check if it's a directory
+        let is_dir = match sftp.metadata(&rp).await {
+            Ok(m) => m.is_dir(),
+            Err(_) => false,
+        };
+
+        let result = if is_dir {
+            sftp::download_dir(
+                &sftp,
+                &rp,
+                &lp,
+                &tid,
+                &mut cancel_rx,
+                |progress| {
+                    let _ = app_clone.emit(&format!("transfer-progress-{}", tid), &progress);
+                },
+            )
+            .await
+        } else {
+            sftp::download(
+                &sftp,
+                &rp,
+                &lp,
+                &tid,
+                &mut cancel_rx,
+                |progress| {
+                    let _ = app_clone.emit(&format!("transfer-progress-{}", tid), &progress);
+                },
+            )
+            .await
+        };
+
+        // Remove from active transfers
+        {
+            let mut transfers = state_clone.active_transfers.lock().await;
+            transfers.remove(&tid);
+        }
+
+        // Emit completion or error
+        match result {
+            Ok(_) => {
+                let progress = sftp::TransferProgress {
+                    id: tid.clone(),
+                    source: rp,
+                    destination: lp,
+                    direction: sftp::TransferDirection::Download,
+                    total_bytes: 0,
+                    transferred_bytes: 0,
+                    status: sftp::TransferStatus::Completed,
+                    error: None,
+                };
+                let _ = app_clone.emit(&format!("transfer-complete-{}", tid), &progress);
+            }
+            Err(e) => {
+                let progress = sftp::TransferProgress {
+                    id: tid.clone(),
+                    source: rp,
+                    destination: lp,
+                    direction: sftp::TransferDirection::Download,
+                    total_bytes: 0,
+                    transferred_bytes: 0,
+                    status: if matches!(e, sftp::SftpError::Cancelled) {
+                        sftp::TransferStatus::Cancelled
+                    } else {
+                        sftp::TransferStatus::Failed
+                    },
+                    error: Some(e.to_string()),
+                };
+                let _ = app_clone.emit(&format!("transfer-error-{}", tid), &progress);
+            }
+        }
+    });
+
+    Ok(())
+}
+
+/// Upload file from local to remote
+#[tauri::command]
+async fn sftp_upload(
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+    sftp_session_id: String,
+    local_path: String,
+    remote_path: String,
+    transfer_id: String,
+) -> Result<(), String> {
+    // Create cancellation channel
+    let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
+
+    // Store cancel sender
+    {
+        let mut transfers = state.active_transfers.lock().await;
+        transfers.insert(transfer_id.clone(), cancel_tx);
+    }
+
+    // Get SFTP session
+    let sftp = {
+        let sftp_sessions = state.sftp_sessions.lock().await;
+        let handle = sftp_sessions
+            .get(&sftp_session_id)
+            .ok_or_else(|| format!("SFTP session '{}' not found", sftp_session_id))?;
+        handle.sftp.clone()
+    };
+
+    let app_clone = app.clone();
+    let tid = transfer_id.clone();
+    let lp = local_path.clone();
+    let rp = remote_path.clone();
+    let state_clone = state.inner().clone();
+
+    // Spawn upload task
+    tokio::spawn(async move {
+        // Check if it's a directory
+        let is_dir = match tokio::fs::metadata(&lp).await {
+            Ok(m) => m.is_dir(),
+            Err(_) => false,
+        };
+
+        let result = if is_dir {
+            sftp::upload_dir(
+                &sftp,
+                &lp,
+                &rp,
+                &tid,
+                &mut cancel_rx,
+                |progress| {
+                    let _ = app_clone.emit(&format!("transfer-progress-{}", tid), &progress);
+                },
+            )
+            .await
+        } else {
+            sftp::upload(
+                &sftp,
+                &lp,
+                &rp,
+                &tid,
+                &mut cancel_rx,
+                |progress| {
+                    let _ = app_clone.emit(&format!("transfer-progress-{}", tid), &progress);
+                },
+            )
+            .await
+        };
+
+        // Remove from active transfers
+        {
+            let mut transfers = state_clone.active_transfers.lock().await;
+            transfers.remove(&tid);
+        }
+
+        // Emit completion or error
+        match result {
+            Ok(_) => {
+                let progress = sftp::TransferProgress {
+                    id: tid.clone(),
+                    source: lp,
+                    destination: rp,
+                    direction: sftp::TransferDirection::Upload,
+                    total_bytes: 0,
+                    transferred_bytes: 0,
+                    status: sftp::TransferStatus::Completed,
+                    error: None,
+                };
+                let _ = app_clone.emit(&format!("transfer-complete-{}", tid), &progress);
+            }
+            Err(e) => {
+                let progress = sftp::TransferProgress {
+                    id: tid.clone(),
+                    source: lp,
+                    destination: rp,
+                    direction: sftp::TransferDirection::Upload,
+                    total_bytes: 0,
+                    transferred_bytes: 0,
+                    status: if matches!(e, sftp::SftpError::Cancelled) {
+                        sftp::TransferStatus::Cancelled
+                    } else {
+                        sftp::TransferStatus::Failed
+                    },
+                    error: Some(e.to_string()),
+                };
+                let _ = app_clone.emit(&format!("transfer-error-{}", tid), &progress);
+            }
+        }
+    });
+
+    Ok(())
+}
+
+/// Cancel active transfer
+#[tauri::command]
+async fn sftp_cancel_transfer(
+    state: State<'_, Arc<AppState>>,
+    transfer_id: String,
+) -> Result<(), String> {
+    let transfers = state.active_transfers.lock().await;
+    if let Some(cancel_tx) = transfers.get(&transfer_id) {
+        let _ = cancel_tx.send(true);
+        Ok(())
+    } else {
+        Err(format!("Transfer '{}' not found or already completed", transfer_id))
+    }
+}
+
+// ============================================================================
+// Local Filesystem Commands (for file manager)
+// ============================================================================
+
+/// List local directory
+#[tauri::command]
+async fn local_list_dir(path: String) -> Result<sftp::DirectoryListing, String> {
+    sftp::local_list_dir(&path)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Get home directory
+#[tauri::command]
+fn local_get_home_dir() -> Result<String, String> {
+    sftp::local_get_home_dir().map_err(|e| e.to_string())
+}
+
+/// Create local directory
+#[tauri::command]
+async fn local_mkdir(path: String) -> Result<(), String> {
+    sftp::local_mkdir(&path)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Remove local file or directory
+#[tauri::command]
+async fn local_remove(path: String, recursive: bool) -> Result<(), String> {
+    sftp::local_remove(&path, recursive)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Rename local file or directory
+#[tauri::command]
+async fn local_rename(old_path: String, new_path: String) -> Result<(), String> {
+    sftp::local_rename(&old_path, &new_path)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ============================================================================
 // App Runner
 // ============================================================================
 
@@ -585,6 +1016,22 @@ pub fn run() {
             ssh_write,
             ssh_resize,
             ssh_disconnect,
+            // SFTP
+            sftp_open,
+            sftp_close,
+            sftp_list_dir,
+            sftp_mkdir,
+            sftp_remove,
+            sftp_rename,
+            sftp_download,
+            sftp_upload,
+            sftp_cancel_transfer,
+            // Local Filesystem (for file manager)
+            local_list_dir,
+            local_get_home_dir,
+            local_mkdir,
+            local_remove,
+            local_rename,
             // Local Storage (new)
             config_load,
             config_save,

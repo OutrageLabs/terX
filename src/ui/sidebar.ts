@@ -15,6 +15,7 @@ import type { Tag } from "../lib/database.types";
 
 export interface SidebarOptions {
   onHostSelect?: (host: HostWithRelations) => void;
+  onHostTransfer?: (host: HostWithRelations) => void;
   onSettingsClick?: () => void;
   onAddHost?: () => void;
 }
@@ -37,6 +38,8 @@ const plusIcon = `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-
 const chevronIcon = `<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>`;
 const serverIcon = `<svg class="w-10 h-10" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>`;
 const errorIcon = `<svg class="w-10 h-10" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+// Transfer/SFTP icon (folder with arrows)
+const transferIcon = `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" title="File Transfer"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/><path d="M12 11v6m0 0l-2-2m2 2l2-2"/></svg>`;
 
 /**
  * Initialize sidebar with options (call once at startup)
@@ -51,10 +54,16 @@ export function initSidebar(options: SidebarOptions = {}): void {
     }
   });
 
-  // Listen for host connection events
+  // Listen for host connection events (SSH)
   window.addEventListener("terx-connect-host", ((e: CustomEvent) => {
     const host = e.detail as HostWithRelations;
     sidebarOptions.onHostSelect?.(host);
+  }) as EventListener);
+
+  // Listen for host transfer events (SFTP)
+  window.addEventListener("terx-transfer-host", ((e: CustomEvent) => {
+    const host = e.detail as HostWithRelations;
+    sidebarOptions.onHostTransfer?.(host);
   }) as EventListener);
 }
 
@@ -323,14 +332,28 @@ function renderHostList(): void {
 
   content.innerHTML = html;
 
-  // Setup host click listeners
-  content.querySelectorAll("[data-host-id]").forEach((el) => {
-    el.addEventListener("click", () => {
-      const hostId = el.getAttribute("data-host-id");
+  // Setup SSH button listeners
+  content.querySelectorAll('[data-action="ssh"]').forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const hostId = btn.getAttribute("data-host-id");
       const host = hostsCache.find((h) => h.id === hostId);
       if (host) {
         hideSidebar();
         window.dispatchEvent(new CustomEvent("terx-connect-host", { detail: host }));
+      }
+    });
+  });
+
+  // Setup Transfer button listeners
+  content.querySelectorAll('[data-action="transfer"]').forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const hostId = btn.getAttribute("data-host-id");
+      const host = hostsCache.find((h) => h.id === hostId);
+      if (host) {
+        hideSidebar();
+        window.dispatchEvent(new CustomEvent("terx-transfer-host", { detail: host }));
       }
     });
   });
@@ -354,19 +377,21 @@ function renderHostList(): void {
 }
 
 /**
- * Render a single host item
+ * Render a single host item - click opens SSH, folder icon opens file manager
  */
 function renderHostItem(host: HostWithRelations): string {
   const isConnected = host.id === connectedHostId;
 
   return `
-    <button
-      class="sidebar-item ${isConnected ? 'sidebar-item-active' : ''}"
-      data-host-id="${host.id}"
-    >
+    <div class="sidebar-item ${isConnected ? 'sidebar-item-active' : ''}" data-action="ssh" data-host-id="${host.id}">
       <span class="sidebar-item-dot ${isConnected ? 'sidebar-item-dot-connected' : ''}"></span>
       <span class="flex-1 truncate">${host.name}</span>
-    </button>
+      <div class="sidebar-item-actions">
+        <button class="sidebar-action-btn" data-action="transfer" data-host-id="${host.id}" title="File Transfer">
+          ${transferIcon}
+        </button>
+      </div>
+    </div>
   `;
 }
 

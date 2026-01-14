@@ -9,9 +9,10 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use crate::credentials::{CredentialsManager, Host};
+use russh_sftp::client::SftpSession;
 
-/// Handler for SSH client
-struct SshHandler {
+/// Handler for SSH client (public for SFTP reuse)
+pub struct SshHandler {
     /// Channel for sending data from server to frontend
     output_tx: mpsc::Sender<Vec<u8>>,
     /// Channel for signaling session close
@@ -89,10 +90,38 @@ pub enum AuthMethod {
 
 /// SSH session
 pub struct SshSession {
-    #[allow(dead_code)]
-    session: client::Handle<SshHandler>,
+    session: Arc<client::Handle<SshHandler>>,
     channel: Channel<Msg>,
     output_rx: mpsc::Receiver<Vec<u8>>,
+}
+
+impl SshSession {
+    /// Get a reference to the session handle for creating additional channels (e.g., SFTP)
+    pub fn handle(&self) -> Arc<client::Handle<SshHandler>> {
+        self.session.clone()
+    }
+}
+
+/// Create SFTP session from an SSH handle
+pub async fn create_sftp_session(handle: &client::Handle<SshHandler>) -> Result<SftpSession, SshError> {
+    // Open a new session channel for SFTP
+    let channel = handle
+        .channel_open_session()
+        .await
+        .map_err(|e| SshError::Channel(format!("Failed to open SFTP channel: {}", e)))?;
+
+    // Request SFTP subsystem
+    channel
+        .request_subsystem(false, "sftp")
+        .await
+        .map_err(|e| SshError::Channel(format!("Failed to request SFTP subsystem: {}", e)))?;
+
+    // Create SFTP session from channel stream
+    let sftp = SftpSession::new(channel.into_stream())
+        .await
+        .map_err(|e| SshError::Channel(format!("Failed to initialize SFTP: {}", e)))?;
+
+    Ok(sftp)
 }
 
 /// Separate channel for signaling session close (avoid double mutable borrow)
@@ -147,18 +176,45 @@ impl SshSession {
                     .map_err(|e| SshError::Auth(e.to_string()))?
             }
             AuthMethod::Key { key_data, passphrase } => {
-                log::info!("SSH: Authenticating with key");
-                let key_pair = if let Some(pass) = passphrase {
-                    russh_keys::decode_secret_key(&key_data, Some(&pass))
-                        .map_err(|e| SshError::Key(e.to_string()))?
+                log::info!("SSH: Authenticating with key (data length: {} bytes)", key_data.len());
+                let key_pair = if let Some(ref pass) = passphrase {
+                    log::info!("SSH: Decoding key with passphrase");
+                    russh_keys::decode_secret_key(&key_data, Some(pass))
+                        .map_err(|e| {
+                            log::error!("SSH: Key decode failed: {}", e);
+                            SshError::Key(e.to_string())
+                        })?
                 } else {
+                    log::info!("SSH: Decoding key without passphrase");
                     russh_keys::decode_secret_key(&key_data, None)
-                        .map_err(|e| SshError::Key(e.to_string()))?
+                        .map_err(|e| {
+                            log::error!("SSH: Key decode failed: {}", e);
+                            SshError::Key(e.to_string())
+                        })?
                 };
-                session
-                    .authenticate_publickey(username, Arc::new(key_pair))
-                    .await
-                    .map_err(|e| SshError::Auth(e.to_string()))?
+                log::info!("SSH: Key decoded successfully");
+                log::info!("SSH: Calling authenticate_publickey...");
+
+                // Add timeout for authentication
+                let auth_future = session.authenticate_publickey(username, Arc::new(key_pair));
+                match tokio::time::timeout(std::time::Duration::from_secs(30), auth_future).await {
+                    Ok(result) => {
+                        match result {
+                            Ok(auth_result) => {
+                                log::info!("SSH: authenticate_publickey result: {}", auth_result);
+                                auth_result
+                            }
+                            Err(e) => {
+                                log::error!("SSH: Key auth error: {}", e);
+                                return Err(SshError::Auth(format!("Key authentication error: {}", e)));
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        log::error!("SSH: Key authentication timed out after 30 seconds");
+                        return Err(SshError::Auth("Key authentication timed out".to_string()));
+                    }
+                }
             }
             AuthMethod::KeyFile { path, passphrase } => {
                 log::info!("SSH: Authenticating with key file: {}", path);
@@ -184,7 +240,7 @@ impl SshSession {
         };
 
         if !authenticated {
-            return Err(SshError::Auth("Authentication failed".to_string()));
+            return Err(SshError::Auth("Authentication failed - check credentials or ensure public key is in authorized_keys".to_string()));
         }
 
         log::info!("SSH: Authenticated successfully");
@@ -219,7 +275,7 @@ impl SshSession {
 
         Ok((
             Self {
-                session,
+                session: Arc::new(session),
                 channel,
                 output_rx,
             },
