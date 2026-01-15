@@ -209,6 +209,7 @@
     "ok": "OK",
     "edit": "Edit",
     "add": "Add",
+    "create": "Create",
     "remove": "Remove",
     "search": "Search",
     "noResults": "No results found",
@@ -234,7 +235,84 @@
     "unknownError": "An unknown error occurred.",
     "sessionExpired": "Your session has expired. Please sign in again.",
     "encryptionFailed": "Encryption failed. Please try again.",
-    "decryptionFailed": "Decryption failed. Check your master password."
+    "decryptionFailed": "Decryption failed. Check your master password.",
+    "sshConnectionFailed": "SSH Connection Failed",
+    "sshConnectionFailedDesc": "Could not connect to the remote host.",
+    "sftpConnectionFailed": "SFTP Connection Failed",
+    "sftpConnectionFailedDesc": "Could not establish file transfer connection.",
+    "sshKeyEmpty": "SSH key is empty",
+    "connectionClosed": "Connection closed."
+  },
+  "help": {
+    "tabs": {
+      "shortcuts": "Shortcuts",
+      "features": "Features",
+      "about": "About"
+    },
+    "sections": {
+      "general": "General",
+      "terminal": "Terminal",
+      "tabs": "Tabs",
+      "fileManager": "File Manager"
+    },
+    "shortcuts": {
+      "openHelp": "Open this help",
+      "toggleSidebar": "Toggle hosts sidebar",
+      "openSettings": "Open settings",
+      "debugPanel": "Debug panel",
+      "copySelection": "Copy selection",
+      "pasteClipboard": "Paste clipboard",
+      "scrollUp": "Scroll up",
+      "scrollDown": "Scroll down",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "resetZoom": "Reset zoom",
+      "nextTab": "Next tab",
+      "prevTab": "Previous tab",
+      "closeTab": "Close tab",
+      "openFileManager": "Open File Manager",
+      "switchPanels": "Switch panels",
+      "openDownload": "Open / Download",
+      "copy": "Copy",
+      "moveRename": "Move / Rename",
+      "newFolder": "New folder",
+      "delete": "Delete"
+    },
+    "features": {
+      "gpuTerminal": {
+        "title": "GPU-Accelerated Terminal",
+        "desc": "WebGL2 rendering with sub-millisecond frame times. Smooth scrolling and selection."
+      },
+      "ghostty": {
+        "title": "Ghostty Terminal Emulation",
+        "desc": "Full VT100/VT220 support via Ghostty WASM. Auto-installs xterm-ghostty terminfo on remote hosts."
+      },
+      "fileManager": {
+        "title": "SFTP File Manager",
+        "desc": "Norton Commander-style dual-pane file browser with full keyboard navigation."
+      },
+      "encryption": {
+        "title": "End-to-End Encryption",
+        "desc": "All credentials encrypted with AES-256-GCM. Master password never leaves your device."
+      },
+      "cloudSync": {
+        "title": "Cloud Sync",
+        "desc": "Optional sync via terX Cloud. Client-side encryption ensures your data stays private."
+      },
+      "selection": {
+        "title": "Native Text Selection",
+        "desc": "Hardware-accelerated selection. Shift+Click mode for compatibility with terminal apps."
+      }
+    },
+    "about": {
+      "tagline": "Cross-Platform SSH Client with GPU-Accelerated Terminal",
+      "techStack": "Tech Stack",
+      "links": "Links",
+      "github": "GitHub",
+      "reportIssue": "Report Issue",
+      "madeWith": "Made with Rust, TypeScript & WebAssembly"
+    },
+    "close": "Close (Esc)"
   },
   "fileManager": {
     "title": "File Manager",
