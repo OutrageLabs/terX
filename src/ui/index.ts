@@ -5,7 +5,7 @@
  */
 
 // Dialogs and base components
-export { showDialog, showConfirm, theme, githubIcon, lockIcon, eyeIcon, eyeOffIcon, inputClasses, labelClasses, buttonPrimaryClasses, buttonSecondaryClasses, buttonDangerClasses, buttonGhostClasses } from "./dialogs";
+export { showDialog, showConfirm, showError, showWarning, theme, githubIcon, lockIcon, eyeIcon, eyeOffIcon, inputClasses, labelClasses, buttonPrimaryClasses, buttonSecondaryClasses, buttonDangerClasses, buttonGhostClasses } from "./dialogs";
 
 // Storage mode selector
 export { showStorageSelector } from "./storage-selector";

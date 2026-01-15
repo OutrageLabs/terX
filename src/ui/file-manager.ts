@@ -19,6 +19,7 @@ import {
 } from '../lib/file-manager-state';
 import { t } from '../i18n';
 import { showDialog, showConfirm, inputClasses, labelClasses, buttonPrimaryClasses, buttonSecondaryClasses, buttonDangerClasses } from './dialogs';
+import { debugError } from '../lib/debug-logger';
 
 // Helper do escape HTML
 function escapeHtml(text: string): string {
@@ -140,7 +141,9 @@ export async function showFileManager(sshSessionId: string): Promise<void> {
             loadRemoteDirectory('~'),
         ]);
     } catch (err) {
-        console.error('Failed to open SFTP session:', err);
+        const errMsg = `SFTP session error: ${err}`;
+        console.error(errMsg);
+        debugError(errMsg);
         state.rightPanel.error = String(err);
         render();
     }
@@ -287,6 +290,7 @@ async function loadRemoteDirectory(path: string): Promise<void> {
         state.rightPanel.selectedIndices = new Set();
         state.rightPanel.focusedIndex = 0;
     } catch (err) {
+        debugError(`SFTP read directory error: ${err}`);
         state.rightPanel.error = String(err);
     } finally {
         state.rightPanel.loading = false;
@@ -803,7 +807,9 @@ async function showMkdirDialog(panel: 'left' | 'right'): Promise<void> {
             showToast('success', t('fileManager.mkdir') || 'Created', name);
             close();
         } catch (err) {
-            console.error('Failed to create directory:', err);
+            const errMsg = `SFTP mkdir error: ${err}`;
+            console.error(errMsg);
+            debugError(errMsg);
             showToast('error', t('fileManager.failed') || 'Failed', name);
         }
     }
@@ -855,7 +861,9 @@ async function showDeleteDialog(panel: 'left' | 'right'): Promise<void> {
             }
             deletedCount++;
         } catch (err) {
-            console.error('Failed to delete:', entry.path, err);
+            const errMsg = `SFTP delete error: ${entry.path} - ${err}`;
+            console.error(errMsg);
+            debugError(errMsg);
             failedCount++;
         }
     }
@@ -934,7 +942,9 @@ async function showRenameDialog(panel: 'left' | 'right'): Promise<void> {
             showToast('success', t('fileManager.rename') || 'Renamed', `${entry.name} → ${newName}`);
             close();
         } catch (err) {
-            console.error('Failed to rename:', err);
+            const errMsg = `SFTP rename error: ${entry.path} - ${err}`;
+            console.error(errMsg);
+            debugError(errMsg);
             showToast('error', t('fileManager.failed') || 'Failed', entry.name);
         }
     }

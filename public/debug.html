@@ -5,6 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>terX Debug</title>
   <style>
+    :root {
+      /* Default theme (Catppuccin Mocha) - will be overridden dynamically */
+      --color-base: #1e1e2e;
+      --color-mantle: #181825;
+      --color-crust: #11111b;
+      --color-surface-0: #313244;
+      --color-surface-1: #45475a;
+      --color-surface-2: #585b70;
+      --color-overlay-0: #6c7086;
+      --color-text: #cdd6f4;
+      --color-subtext-0: #a6adc8;
+      --color-blue: #89b4fa;
+      --color-green: #a6e3a1;
+      --color-red: #f38ba8;
+      --color-yellow: #f9e2af;
+    }
     * {
       margin: 0;
       padding: 0;
@@ -13,25 +29,25 @@
     body {
       font-family: 'JetBrains Mono', 'Fira Code', monospace;
       font-size: 12px;
-      background: #1e1e2e;
-      color: #cdd6f4;
+      background: var(--color-base);
+      color: var(--color-text);
       padding: 10px;
       overflow-y: auto;
     }
     h1 {
       font-size: 14px;
-      color: #89b4fa;
+      color: var(--color-blue);
       margin-bottom: 10px;
-      border-bottom: 1px solid #45475a;
+      border-bottom: 1px solid var(--color-surface-1);
       padding-bottom: 5px;
     }
     h2 {
       font-size: 12px;
-      color: #f9e2af;
+      color: var(--color-yellow);
       margin: 15px 0 8px 0;
     }
     .section {
-      background: #313244;
+      background: var(--color-surface-0);
       border-radius: 6px;
       padding: 10px;
       margin-bottom: 10px;
@@ -40,58 +56,64 @@
       display: flex;
       justify-content: space-between;
       padding: 4px 0;
-      border-bottom: 1px solid #45475a;
+      border-bottom: 1px solid var(--color-surface-1);
     }
     .metric:last-child {
       border-bottom: none;
     }
     .metric-label {
-      color: #a6adc8;
+      color: var(--color-subtext-0);
     }
     .metric-value {
-      color: #a6e3a1;
+      color: var(--color-green);
       font-weight: bold;
     }
     .metric-value.warning {
-      color: #f9e2af;
+      color: var(--color-yellow);
     }
     .metric-value.error {
-      color: #f38ba8;
+      color: var(--color-red);
     }
     .metric-value.good {
-      color: #a6e3a1;
+      color: var(--color-green);
     }
     .fps-bar {
       width: 100%;
       height: 20px;
-      background: #45475a;
+      background: var(--color-surface-1);
       border-radius: 4px;
       overflow: hidden;
       margin-top: 5px;
     }
     .fps-fill {
       height: 100%;
-      background: #a6e3a1;
+      background: var(--color-green);
       transition: width 0.1s;
     }
     .log-area {
-      background: #11111b;
+      background: var(--color-crust);
       border-radius: 4px;
       padding: 8px;
-      max-height: 200px;
+      height: 85px; /* 5 lines * ~17px line-height */
       overflow-y: auto;
       font-size: 11px;
       line-height: 1.4;
     }
     .log-entry {
       padding: 2px 0;
-      border-bottom: 1px solid #1e1e2e;
+      border-bottom: 1px solid var(--color-mantle);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .log-entry.warn {
-      color: #f9e2af;
+      color: var(--color-yellow);
     }
     .log-entry.error {
-      color: #f38ba8;
+      color: var(--color-red);
+    }
+    .log-entry.info {
+      color: var(--color-text);
     }
     #status {
       position: fixed;
@@ -102,12 +124,12 @@
       font-size: 11px;
     }
     #status.connected {
-      background: #a6e3a1;
-      color: #1e1e2e;
+      background: var(--color-green);
+      color: var(--color-crust);
     }
     #status.disconnected {
-      background: #f38ba8;
-      color: #1e1e2e;
+      background: var(--color-red);
+      color: var(--color-crust);
     }
   </style>
 </head>
@@ -116,11 +138,25 @@
 
   <h1>terX Debug Panel</h1>
 
+  <!-- Event Log at TOP -->
+  <div class="section">
+    <h2>Event Log</h2>
+    <div class="log-area" id="logArea"></div>
+  </div>
+
   <div class="section">
     <h2>System Info</h2>
     <div class="metric">
-      <span class="metric-label">Platform</span>
+      <span class="metric-label">OS</span>
+      <span class="metric-value" id="osInfo">-</span>
+    </div>
+    <div class="metric">
+      <span class="metric-label">Architecture</span>
       <span class="metric-value" id="platform">-</span>
+    </div>
+    <div class="metric">
+      <span class="metric-label">Hostname</span>
+      <span class="metric-value" id="hostname">-</span>
     </div>
     <div class="metric">
       <span class="metric-label">Device Pixel Ratio</span>
@@ -137,6 +173,10 @@
     <div class="metric">
       <span class="metric-label">Canvas Size (Physical)</span>
       <span class="metric-value" id="canvasPhysical">-</span>
+    </div>
+    <div class="metric">
+      <span class="metric-label">Memory (JS Heap)</span>
+      <span class="metric-value" id="memoryInfo">-</span>
     </div>
   </div>
 
@@ -231,27 +271,23 @@
     </div>
   </div>
 
-  <div class="section">
-    <h2>Event Log</h2>
-    <div class="log-area" id="logArea"></div>
-  </div>
-
   <script type="module">
-    // Wait for Tauri to be ready
     const { listen } = window.__TAURI__.event;
 
-    // Debug data receiver
     let connected = false;
     const logArea = document.getElementById('logArea');
+    const MAX_LOG_ENTRIES = 100;
 
     function addLog(message, level = 'info') {
       const entry = document.createElement('div');
       entry.className = `log-entry ${level}`;
-      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+      entry.textContent = `[${time}] ${message}`;
+      entry.title = message; // Show full text on hover
       logArea.insertBefore(entry, logArea.firstChild);
 
-      // Keep only last 100 entries
-      while (logArea.children.length > 100) {
+      // Keep only last MAX_LOG_ENTRIES entries
+      while (logArea.children.length > MAX_LOG_ENTRIES) {
         logArea.removeChild(logArea.lastChild);
       }
     }
@@ -276,17 +312,48 @@
       connected = isConnected;
     }
 
+    // Apply theme from main window
+    function applyTheme(theme) {
+      if (!theme || !theme.ui) return;
+      const ui = theme.ui;
+      const root = document.documentElement;
+
+      root.style.setProperty('--color-base', ui.base);
+      root.style.setProperty('--color-mantle', ui.mantle);
+      root.style.setProperty('--color-crust', ui.crust);
+      root.style.setProperty('--color-surface-0', ui.surface0);
+      root.style.setProperty('--color-surface-1', ui.surface1);
+      root.style.setProperty('--color-surface-2', ui.surface2);
+      root.style.setProperty('--color-overlay-0', ui.overlay0);
+      root.style.setProperty('--color-text', ui.text);
+      root.style.setProperty('--color-subtext-0', ui.subtext0);
+      root.style.setProperty('--color-blue', ui.blue);
+      root.style.setProperty('--color-green', ui.green);
+      root.style.setProperty('--color-red', ui.red);
+      root.style.setProperty('--color-yellow', ui.yellow);
+
+      document.body.style.backgroundColor = ui.base;
+    }
+
     function processMetrics(metrics) {
       if (!metrics) return;
 
       updateStatus(true);
 
+      // Apply theme if provided
+      if (metrics.theme) {
+        applyTheme(metrics.theme);
+      }
+
       // System info
       updateMetric('platform', metrics.platform || '-');
+      updateMetric('osInfo', metrics.osInfo || '-');
+      updateMetric('hostname', metrics.hostname || '-');
       updateMetric('dpr', metrics.dpr?.toFixed(2) || '-', metrics.dpr > 1.5 ? 'warning' : 'good');
       updateMetric('windowSize', metrics.windowSize || '-');
       updateMetric('canvasCss', metrics.canvasCss || '-');
       updateMetric('canvasPhysical', metrics.canvasPhysical || '-');
+      updateMetric('memoryInfo', metrics.memoryInfo || '-');
 
       // WebGL info
       const renderer = metrics.glRenderer || '-';
@@ -329,21 +396,33 @@
       updateMetric('scrollback', metrics.scrollback || '-');
     }
 
-    // Listen for Tauri events from main window
-    addLog('Debug window initialized, listening for Tauri events...');
+    // Listen for Tauri events
+    addLog('Debug window initialized');
 
     listen('debug-metrics', (event) => {
       processMetrics(event.payload);
     }).then(() => {
-      addLog('Tauri event listener registered');
+      addLog('Metrics listener registered');
     }).catch((err) => {
-      addLog(`Failed to register listener: ${err}`, 'error');
+      addLog(`Failed to register metrics listener: ${err}`, 'error');
     });
 
-    // Check connection timeout
+    // Listen for debug log events (SSH/SFTP errors etc)
+    listen('debug-log', (event) => {
+      const { message, level } = event.payload || {};
+      if (message) {
+        addLog(message, level || 'info');
+      }
+    }).then(() => {
+      addLog('Log listener registered');
+    }).catch((err) => {
+      addLog(`Failed to register log listener: ${err}`, 'error');
+    });
+
+    // Connection timeout check
     setTimeout(() => {
       if (!connected) {
-        addLog('No metrics received yet. Click DEBUG button in terminal.', 'warn');
+        addLog('No metrics received. Is terminal window open?', 'warn');
       }
     }, 3000);
   </script>
