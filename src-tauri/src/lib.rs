@@ -50,6 +50,58 @@ fn app_exit(app: AppHandle) {
     app.exit(0);
 }
 
+/// System info structure for debug panel
+#[derive(serde::Serialize)]
+pub struct SystemInfo {
+    pub os_name: String,
+    pub os_version: String,
+    pub arch: String,
+    pub hostname: String,
+}
+
+#[tauri::command]
+fn get_system_info() -> SystemInfo {
+    let os_name = std::env::consts::OS.to_string();
+    let arch = std::env::consts::ARCH.to_string();
+
+    // Get OS version
+    let os_version = if cfg!(target_os = "macos") {
+        // Use sw_vers on macOS
+        std::process::Command::new("sw_vers")
+            .arg("-productVersion")
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| "unknown".to_string())
+    } else if cfg!(target_os = "linux") {
+        std::fs::read_to_string("/etc/os-release")
+            .ok()
+            .and_then(|s| {
+                s.lines()
+                    .find(|l| l.starts_with("PRETTY_NAME="))
+                    .map(|l| l.trim_start_matches("PRETTY_NAME=").trim_matches('"').to_string())
+            })
+            .unwrap_or_else(|| "Linux".to_string())
+    } else if cfg!(target_os = "windows") {
+        "Windows".to_string()
+    } else {
+        "unknown".to_string()
+    };
+
+    let hostname = hostname::get()
+        .ok()
+        .and_then(|h| h.into_string().ok())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    SystemInfo {
+        os_name,
+        os_version,
+        arch,
+        hostname,
+    }
+}
+
 // ============================================================================
 // Local Storage Commands (new storage system)
 // ============================================================================
@@ -1010,6 +1062,7 @@ pub fn run() {
             credentials_list_hosts,
             // App
             app_exit,
+            get_system_info,
         ])
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())

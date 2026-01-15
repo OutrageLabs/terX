@@ -40,11 +40,13 @@ import {
   activateFileManager,
   deactivateFileManager,
   isFileManagerVisible,
+  showError,
 } from './ui';
 import * as storage from './lib/storage';
 import type { HostWithRelations } from './lib/storage';
 import * as themes from './lib/themes';
 import type { TerminalFontFamily } from './lib/themes';
+import { sendDebugLog } from './lib/debug-logger';
 
 // Global type declarations
 declare global {
@@ -87,6 +89,23 @@ async function main(): Promise<void> {
   let terminalFontFamily: string;
   let terminalFontSize: number;
   let selectionRequireShift = true; // Default: Shift+Click for selection
+
+  // System info (cached from Rust backend - real values, not WebView fake)
+  interface SystemInfo {
+    os_name: string;
+    os_version: string;
+    arch: string;
+    hostname: string;
+  }
+  let cachedSystemInfo: SystemInfo | null = null;
+
+  // Fetch real system info from Rust backend
+  try {
+    cachedSystemInfo = await invoke<SystemInfo>('get_system_info');
+    console.log('[terX] System info:', cachedSystemInfo);
+  } catch (e) {
+    console.warn('[terX] Failed to get system info:', e);
+  }
 
   // ============================================================================
   // Deep Link Handler - OAuth/Email Callback from browser
@@ -343,7 +362,9 @@ async function main(): Promise<void> {
         const bytes = Array.from(encoder.encode(data));
         await invoke('ssh_write', { sessionId: sshSessionId, data: bytes });
       } catch (error) {
-        console.error('[terX] SSH write error:', error);
+        const errMsg = `SSH write error: ${error}`;
+        console.error('[terX]', errMsg);
+        sendDebugLog(errMsg, 'error');
       }
     });
 
@@ -355,7 +376,9 @@ async function main(): Promise<void> {
         // Only send resize if this is the active session
         if (sessionManager.activeSessionId === sshSessionId) {
           invoke('ssh_resize', { sessionId: sshSessionId, cols, rows }).catch((err) => {
-            console.error('[terX] SSH resize error:', err);
+            const errMsg = `SSH resize error: ${err}`;
+            console.error('[terX]', errMsg);
+            sendDebugLog(errMsg, 'error');
           });
         }
       }, 50);
@@ -517,9 +540,14 @@ async function main(): Promise<void> {
       const errorMessage = typeof error === 'string' ? error : (error as Error)?.message || String(error);
       updateStatus(`SSH Error: ${errorMessage.substring(0, 50)}`, false);
       console.error('[terX] SSH connection failed:', error);
+      sendDebugLog(`SSH connection failed: ${errorMessage}`, 'error');
 
       // Show error to user
-      alert(`SSH Connection Error:\n\n${errorMessage}`);
+      showError({
+        title: 'SSH Connection Failed',
+        message: 'Could not connect to the remote host.',
+        details: errorMessage,
+      });
 
       if (sessionManager.sessionCount === 0) {
         showWelcomeScreen();
@@ -574,9 +602,14 @@ async function main(): Promise<void> {
       const errorMessage = typeof error === 'string' ? error : (error as Error)?.message || String(error);
       updateStatus(`Transfer Error: ${errorMessage.substring(0, 50)}`, false);
       console.error('[terX] SSH connection for transfer failed:', error);
+      sendDebugLog(`SFTP connection failed: ${errorMessage}`, 'error');
 
       // Show error to user
-      alert(`SFTP Connection Error:\n\n${errorMessage}`);
+      showError({
+        title: 'SFTP Connection Failed',
+        message: 'Could not establish file transfer connection.',
+        details: errorMessage,
+      });
 
       showWelcomeScreen();
     } finally {
@@ -1007,8 +1040,25 @@ async function main(): Promise<void> {
     const renderer = terminal?.renderer as any;
     const renderStats = renderer?.renderStats || {};
 
+    // Memory info (Chrome/Edge only)
+    const memoryInfo = (performance as any).memory
+      ? `${((performance as any).memory.usedJSHeapSize / 1024 / 1024).toFixed(1)} / ${((performance as any).memory.jsHeapSizeLimit / 1024 / 1024).toFixed(0)} MB`
+      : '-';
+
+    // Use cached system info from Rust (real values)
+    const sysInfo = cachedSystemInfo;
+    const osInfo = sysInfo ? `${sysInfo.os_name} ${sysInfo.os_version}` : '-';
+    const archInfo = sysInfo?.arch || '-';
+    const hostnameInfo = sysInfo?.hostname || '-';
+
     return {
-      platform: navigator.platform,
+      // Theme for debug window styling
+      theme: themes.getCurrentTheme(),
+      // System info (from Rust - real values)
+      platform: archInfo,
+      osInfo,
+      hostname: hostnameInfo,
+      memoryInfo,
       dpr,
       windowSize: `${window.innerWidth} x ${window.innerHeight}`,
       canvasCss: canvas ? `${canvas.clientWidth} x ${canvas.clientHeight}` : '-',

@@ -197,6 +197,110 @@ export const eyeOffIcon = `
 </svg>
 `;
 
+// Error icon (inline color for reliability)
+export const errorIcon = `
+<svg style="width: 48px; height: 48px; color: var(--color-red, #f38ba8);" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+</svg>
+`;
+
+// Warning icon (inline color for reliability)
+export const warningIcon = `
+<svg style="width: 48px; height: 48px; color: var(--color-yellow, #f9e2af);" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+</svg>
+`;
+
+/**
+ * Show an error dialog with a styled error message
+ */
+export function showError(options: {
+  title: string;
+  message: string;
+  details?: string;
+  buttonText?: string;
+}): Promise<void> {
+  return new Promise((resolve) => {
+    const { element, close } = showDialog({
+      title: options.title,
+      content: `
+        <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px; padding: 8px 0;">
+          ${errorIcon}
+          <p style="color: var(--color-text, #cdd6f4); line-height: 1.6;">${options.message}</p>
+          ${options.details ? `
+            <div style="width: 100%; margin-top: 8px; padding: 12px; background: var(--color-crust, #11111b); border-radius: 8px; text-align: left;">
+              <code style="font-size: 11px; color: var(--color-subtext-0, #a6adc8); word-break: break-all; white-space: pre-wrap;">${options.details}</code>
+            </div>
+          ` : ''}
+        </div>
+      `,
+      size: 'sm',
+      onClose: () => resolve(),
+    });
+
+    // Add footer with button
+    const footer = document.createElement("div");
+    footer.className = "dialog-footer";
+    footer.style.justifyContent = "center";
+    footer.innerHTML = `
+      <button class="btn btn-primary" data-action="ok">
+        ${options.buttonText || t("common.ok") || "OK"}
+      </button>
+    `;
+    element.appendChild(footer);
+
+    footer.querySelector('[data-action="ok"]')?.addEventListener("click", () => {
+      close();
+      resolve();
+    });
+  });
+}
+
+/**
+ * Show a warning dialog
+ */
+export function showWarning(options: {
+  title: string;
+  message: string;
+  details?: string;
+  buttonText?: string;
+}): Promise<void> {
+  return new Promise((resolve) => {
+    const { element, close } = showDialog({
+      title: options.title,
+      content: `
+        <div style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px; padding: 8px 0;">
+          ${warningIcon}
+          <p style="color: var(--color-text, #cdd6f4); line-height: 1.6;">${options.message}</p>
+          ${options.details ? `
+            <div style="width: 100%; margin-top: 8px; padding: 12px; background: var(--color-crust, #11111b); border-radius: 8px; text-align: left;">
+              <code style="font-size: 11px; color: var(--color-subtext-0, #a6adc8); word-break: break-all; white-space: pre-wrap;">${options.details}</code>
+            </div>
+          ` : ''}
+        </div>
+      `,
+      size: 'sm',
+      onClose: () => resolve(),
+    });
+
+    // Add footer with button
+    const footer = document.createElement("div");
+    footer.className = "dialog-footer";
+    footer.style.justifyContent = "center";
+    footer.innerHTML = `
+      <button class="btn btn-primary" data-action="ok">
+        ${options.buttonText || t("common.ok") || "OK"}
+      </button>
+    `;
+    element.appendChild(footer);
+
+    footer.querySelector('[data-action="ok"]')?.addEventListener("click", () => {
+      close();
+      resolve();
+    });
+  });
+}
+
 // CSS class exports (using new component classes)
 export const inputClasses = "input";
 export const labelClasses = "text-label";
