@@ -3,6 +3,8 @@
  * Features: Shortcuts, Features, About
  */
 
+import { t } from "../i18n";
+
 let helpPopup: HTMLDivElement | null = null;
 let backdrop: HTMLDivElement | null = null;
 let currentTab: 'shortcuts' | 'features' | 'about' = 'shortcuts';
@@ -10,67 +12,43 @@ let currentTab: 'shortcuts' | 'features' | 'about' = 'shortcuts';
 // Keyboard shortcuts organized by category
 const SHORTCUTS = {
   general: [
-    { keys: 'F1', description: 'Open this help' },
-    { keys: 'Ctrl+H', description: 'Toggle hosts sidebar' },
-    { keys: 'Ctrl+,', description: 'Open settings' },
-    { keys: 'F3', description: 'Debug panel' },
+    { keys: 'F1', descKey: 'openHelp' },
+    { keys: 'Ctrl+H', descKey: 'toggleSidebar' },
+    { keys: 'Ctrl+,', descKey: 'openSettings' },
+    { keys: 'F3', descKey: 'debugPanel' },
   ],
   terminal: [
-    { keys: 'Ctrl+Shift+C', description: 'Copy selection' },
-    { keys: 'Ctrl+Shift+V', description: 'Paste clipboard' },
-    { keys: 'Shift+PageUp', description: 'Scroll up' },
-    { keys: 'Shift+PageDown', description: 'Scroll down' },
-    { keys: 'Cmd/Ctrl++', description: 'Zoom in' },
-    { keys: 'Cmd/Ctrl+-', description: 'Zoom out' },
-    { keys: 'Cmd/Ctrl+0', description: 'Reset zoom' },
+    { keys: 'Ctrl+Shift+C', descKey: 'copySelection' },
+    { keys: 'Ctrl+Shift+V', descKey: 'pasteClipboard' },
+    { keys: 'Shift+PageUp', descKey: 'scrollUp' },
+    { keys: 'Shift+PageDown', descKey: 'scrollDown' },
+    { keys: 'Cmd/Ctrl++', descKey: 'zoomIn' },
+    { keys: 'Cmd/Ctrl+-', descKey: 'zoomOut' },
+    { keys: 'Cmd/Ctrl+0', descKey: 'resetZoom' },
   ],
   tabs: [
-    { keys: 'Ctrl+Tab', description: 'Next tab' },
-    { keys: 'Ctrl+Shift+Tab', description: 'Previous tab' },
-    { keys: 'Ctrl+W', description: 'Close tab' },
+    { keys: 'Ctrl+Tab', descKey: 'nextTab' },
+    { keys: 'Ctrl+Shift+Tab', descKey: 'prevTab' },
+    { keys: 'Ctrl+W', descKey: 'closeTab' },
   ],
   fileManager: [
-    { keys: 'Ctrl+F5', description: 'Open File Manager' },
-    { keys: 'Tab', description: 'Switch panels' },
-    { keys: 'Enter', description: 'Open / Download' },
-    { keys: 'F5', description: 'Copy' },
-    { keys: 'F6', description: 'Move / Rename' },
-    { keys: 'F7', description: 'New folder' },
-    { keys: 'F8 / Del', description: 'Delete' },
+    { keys: 'Ctrl+F5', descKey: 'openFileManager' },
+    { keys: 'Tab', descKey: 'switchPanels' },
+    { keys: 'Enter', descKey: 'openDownload' },
+    { keys: 'F5', descKey: 'copy' },
+    { keys: 'F6', descKey: 'moveRename' },
+    { keys: 'F7', descKey: 'newFolder' },
+    { keys: 'F8 / Del', descKey: 'delete' },
   ],
 };
 
 const FEATURES = [
-  {
-    title: 'GPU-Accelerated Terminal',
-    icon: '⚡',
-    description: 'WebGL2 rendering with sub-millisecond frame times. Smooth scrolling and selection.',
-  },
-  {
-    title: 'Ghostty Terminal Emulation',
-    icon: '👻',
-    description: 'Full VT100/VT220 support via Ghostty WASM. Auto-installs xterm-ghostty terminfo on remote hosts.',
-  },
-  {
-    title: 'SFTP File Manager',
-    icon: '📁',
-    description: 'Norton Commander-style dual-pane file browser with full keyboard navigation.',
-  },
-  {
-    title: 'End-to-End Encryption',
-    icon: '🔐',
-    description: 'All credentials encrypted with AES-256-GCM. Master password never leaves your device.',
-  },
-  {
-    title: 'Cloud Sync',
-    icon: '☁️',
-    description: 'Optional sync via terX Cloud. Client-side encryption ensures your data stays private.',
-  },
-  {
-    title: 'Native Text Selection',
-    icon: '✂️',
-    description: 'Hardware-accelerated selection. Shift+Click mode for compatibility with terminal apps.',
-  },
+  { icon: '⚡', key: 'gpuTerminal' },
+  { icon: '👻', key: 'ghostty' },
+  { icon: '📁', key: 'fileManager' },
+  { icon: '🔐', key: 'encryption' },
+  { icon: '☁️', key: 'cloudSync' },
+  { icon: '✂️', key: 'selection' },
 ];
 
 const ABOUT = {
@@ -82,21 +60,17 @@ const ABOUT = {
     { name: 'SSH Client', value: 'russh' },
     { name: 'Encryption', value: 'AES-256-GCM + PBKDF2' },
   ],
-  links: [
-    { label: 'GitHub', url: 'https://github.com/OutrageLabs/terX' },
-    { label: 'Report Issue', url: 'https://github.com/OutrageLabs/terX/issues' },
-  ],
 };
 
 function renderShortcutsTab(): string {
-  const renderSection = (title: string, shortcuts: typeof SHORTCUTS.general) => `
+  const renderSection = (titleKey: string, shortcuts: typeof SHORTCUTS.general) => `
     <div class="help-section">
-      <h4 class="help-section-title">${title}</h4>
+      <h4 class="help-section-title">${t(`help.sections.${titleKey}`)}</h4>
       <div class="help-shortcuts-list">
         ${shortcuts.map(s => `
           <div class="help-shortcut-row">
             <kbd class="help-kbd">${s.keys}</kbd>
-            <span class="help-shortcut-desc">${s.description}</span>
+            <span class="help-shortcut-desc">${t(`help.shortcuts.${s.descKey}`)}</span>
           </div>
         `).join('')}
       </div>
@@ -105,10 +79,10 @@ function renderShortcutsTab(): string {
 
   return `
     <div class="help-tab-content">
-      ${renderSection('General', SHORTCUTS.general)}
-      ${renderSection('Terminal', SHORTCUTS.terminal)}
-      ${renderSection('Tabs', SHORTCUTS.tabs)}
-      ${renderSection('File Manager', SHORTCUTS.fileManager)}
+      ${renderSection('general', SHORTCUTS.general)}
+      ${renderSection('terminal', SHORTCUTS.terminal)}
+      ${renderSection('tabs', SHORTCUTS.tabs)}
+      ${renderSection('fileManager', SHORTCUTS.fileManager)}
     </div>
   `;
 }
@@ -121,8 +95,8 @@ function renderFeaturesTab(): string {
           <div class="help-feature-card">
             <div class="help-feature-icon">${f.icon}</div>
             <div class="help-feature-content">
-              <h4 class="help-feature-title">${f.title}</h4>
-              <p class="help-feature-desc">${f.description}</p>
+              <h4 class="help-feature-title">${t(`help.features.${f.key}.title`)}</h4>
+              <p class="help-feature-desc">${t(`help.features.${f.key}.desc`)}</p>
             </div>
           </div>
         `).join('')}
@@ -139,10 +113,10 @@ function renderAboutTab(): string {
           <div class="help-about-logo">terX</div>
           <div class="help-about-version">v${ABOUT.version}</div>
         </div>
-        <p class="help-about-tagline">Cross-Platform SSH Client with GPU-Accelerated Terminal</p>
+        <p class="help-about-tagline">${t('help.about.tagline')}</p>
 
         <div class="help-section">
-          <h4 class="help-section-title">Tech Stack</h4>
+          <h4 class="help-section-title">${t('help.about.techStack')}</h4>
           <div class="help-stack-list">
             ${ABOUT.stack.map(s => `
               <div class="help-stack-row">
@@ -154,16 +128,15 @@ function renderAboutTab(): string {
         </div>
 
         <div class="help-section">
-          <h4 class="help-section-title">Links</h4>
+          <h4 class="help-section-title">${t('help.about.links')}</h4>
           <div class="help-links">
-            ${ABOUT.links.map(l => `
-              <a href="${l.url}" target="_blank" class="help-link">${l.label} ↗</a>
-            `).join('')}
+            <a href="https://github.com/OutrageLabs/terX" target="_blank" class="help-link">${t('help.about.github')} ↗</a>
+            <a href="https://github.com/OutrageLabs/terX/issues" target="_blank" class="help-link">${t('help.about.reportIssue')} ↗</a>
           </div>
         </div>
 
         <div class="help-about-footer">
-          <span>Made with Rust, TypeScript & WebAssembly</span>
+          <span>${t('help.about.madeWith')}</span>
           <span class="help-about-copyright">© 2024 OutrageLabs</span>
         </div>
       </div>
@@ -220,23 +193,23 @@ export function showShortcutsHelp(): void {
             <rect x="2" y="4" width="20" height="16" rx="2"/>
             <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h8M6 16h.01M10 16h.01M14 16h.01M18 16h.01"/>
           </svg>
-          Shortcuts
+          ${t('help.tabs.shortcuts')}
         </button>
         <button class="help-tab" data-tab="features">
           <svg class="help-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
           </svg>
-          Features
+          ${t('help.tabs.features')}
         </button>
         <button class="help-tab" data-tab="about">
           <svg class="help-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/>
             <path d="M12 16v-4M12 8h.01"/>
           </svg>
-          About
+          ${t('help.tabs.about')}
         </button>
       </div>
-      <button class="help-close" title="Close (Esc)">
+      <button class="help-close" title="${t('help.close')}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M18 6L6 18M6 6l12 12"/>
         </svg>

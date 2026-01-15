@@ -209,6 +209,7 @@
     "ok": "OK",
     "edit": "Edytuj",
     "add": "Dodaj",
+    "create": "Utworz",
     "remove": "Usun",
     "search": "Szukaj",
     "noResults": "Brak wynikow",
@@ -234,7 +235,84 @@
     "unknownError": "Wystapil nieznany blad.",
     "sessionExpired": "Twoja sesja wygasla. Zaloguj sie ponownie.",
     "encryptionFailed": "Szyfrowanie nie powiodlo sie. Sprobuj ponownie.",
-    "decryptionFailed": "Deszyfrowanie nie powiodlo sie. Sprawdz haslo glowne."
+    "decryptionFailed": "Deszyfrowanie nie powiodlo sie. Sprawdz haslo glowne.",
+    "sshConnectionFailed": "Polaczenie SSH nie powiodlo sie",
+    "sshConnectionFailedDesc": "Nie mozna polaczyc ze zdalnym hostem.",
+    "sftpConnectionFailed": "Polaczenie SFTP nie powiodlo sie",
+    "sftpConnectionFailedDesc": "Nie mozna nawiazac polaczenia do transferu plikow.",
+    "sshKeyEmpty": "Klucz SSH jest pusty",
+    "connectionClosed": "Polaczenie zamkniete."
+  },
+  "help": {
+    "tabs": {
+      "shortcuts": "Skroty",
+      "features": "Funkcje",
+      "about": "O programie"
+    },
+    "sections": {
+      "general": "Ogolne",
+      "terminal": "Terminal",
+      "tabs": "Karty",
+      "fileManager": "Menedzer plikow"
+    },
+    "shortcuts": {
+      "openHelp": "Otworz pomoc",
+      "toggleSidebar": "Przelacz pasek hostow",
+      "openSettings": "Otworz ustawienia",
+      "debugPanel": "Panel debugowania",
+      "copySelection": "Kopiuj zaznaczenie",
+      "pasteClipboard": "Wklej ze schowka",
+      "scrollUp": "Przewin w gore",
+      "scrollDown": "Przewin w dol",
+      "zoomIn": "Przybliz",
+      "zoomOut": "Oddal",
+      "resetZoom": "Resetuj powiekszenie",
+      "nextTab": "Nastepna karta",
+      "prevTab": "Poprzednia karta",
+      "closeTab": "Zamknij karte",
+      "openFileManager": "Otworz menedzer plikow",
+      "switchPanels": "Przelacz panele",
+      "openDownload": "Otworz / Pobierz",
+      "copy": "Kopiuj",
+      "moveRename": "Przenies / Zmien nazwe",
+      "newFolder": "Nowy folder",
+      "delete": "Usun"
+    },
+    "features": {
+      "gpuTerminal": {
+        "title": "Terminal GPU",
+        "desc": "Renderowanie WebGL2 z czasem klatki ponizej milisekundy. Plynne przewijanie i zaznaczanie."
+      },
+      "ghostty": {
+        "title": "Emulacja Ghostty",
+        "desc": "Pelna obsluga VT100/VT220 przez Ghostty WASM. Auto-instalacja xterm-ghostty terminfo na zdalnych hostach."
+      },
+      "fileManager": {
+        "title": "Menedzer plikow SFTP",
+        "desc": "Dwupanelowa przegladarka plikow w stylu Norton Commander z pelna obsluga klawiatury."
+      },
+      "encryption": {
+        "title": "Szyfrowanie End-to-End",
+        "desc": "Wszystkie dane uwierzytelniajace szyfrowane AES-256-GCM. Haslo glowne nigdy nie opuszcza urzadzenia."
+      },
+      "cloudSync": {
+        "title": "Synchronizacja w chmurze",
+        "desc": "Opcjonalna synchronizacja przez terX Cloud. Szyfrowanie po stronie klienta zapewnia prywatnosc."
+      },
+      "selection": {
+        "title": "Natywne zaznaczanie tekstu",
+        "desc": "Sprzetowo akcelerowane zaznaczanie. Tryb Shift+Click dla kompatybilnosci z aplikacjami terminalowymi."
+      }
+    },
+    "about": {
+      "tagline": "Wieloplatformowy klient SSH z terminalem akcelerowanym GPU",
+      "techStack": "Stos technologiczny",
+      "links": "Linki",
+      "github": "GitHub",
+      "reportIssue": "Zglos problem",
+      "madeWith": "Stworzone w Rust, TypeScript i WebAssembly"
+    },
+    "close": "Zamknij (Esc)"
   },
   "fileManager": {
     "title": "Menedzer plikow",

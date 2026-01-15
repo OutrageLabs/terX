@@ -45,6 +45,7 @@ import {
 import * as storage from './lib/storage';
 import type { HostWithRelations } from './lib/storage';
 import * as themes from './lib/themes';
+import { t } from './i18n';
 import type { TerminalFontFamily } from './lib/themes';
 import { sendDebugLog } from './lib/debug-logger';
 
@@ -344,7 +345,7 @@ async function main(): Promise<void> {
       console.log(`[terX] SSH session ${sshSessionId} closed`);
 
       // Show brief message, then auto-close the tab
-      terminal.write('\r\n\x1b[33mConnection closed.\x1b[0m\r\n');
+      terminal.write(`\r\n\x1b[33m${t('errors.connectionClosed')}\x1b[0m\r\n`);
 
       // Auto-close tab after short delay (let user see the message)
       setTimeout(() => {
@@ -406,7 +407,7 @@ async function main(): Promise<void> {
   // ============================================================================
   function validateSSHKey(keyData: string): { valid: boolean; error?: string } {
     if (!keyData || keyData.trim().length === 0) {
-      return { valid: false, error: 'SSH key is empty' };
+      return { valid: false, error: t('errors.sshKeyEmpty') };
     }
 
     const validHeaders = [
@@ -544,8 +545,8 @@ async function main(): Promise<void> {
 
       // Show error to user
       showError({
-        title: 'SSH Connection Failed',
-        message: 'Could not connect to the remote host.',
+        title: t('errors.sshConnectionFailed'),
+        message: t('errors.sshConnectionFailedDesc'),
         details: errorMessage,
       });
 
@@ -606,8 +607,8 @@ async function main(): Promise<void> {
 
       // Show error to user
       showError({
-        title: 'SFTP Connection Failed',
-        message: 'Could not establish file transfer connection.',
+        title: t('errors.sftpConnectionFailed'),
+        message: t('errors.sftpConnectionFailedDesc'),
         details: errorMessage,
       });
 
