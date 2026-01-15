@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.5] - 2026-01-15
+### :bug: Bug Fixes
+- [`4f0edc6`](https://github.com/OutrageLabs/terX/commit/4f0edc6312434c0f8cc2b76516aa2e881a2799cb) - SSH freeze with russh 0.56 + update all dependencies *(commit by [@kofany](https://github.com/kofany))*
+
+### :memo: Documentation Changes
+- [`a836a7b`](https://github.com/OutrageLabs/terX/commit/a836a7b57591a0bcc2631e06dbce067382f33fee) - update CHANGELOG.md for v0.1.4 *(commit by [@kofany](https://github.com/kofany))*
+
+
 ## [v0.1.4] - 2026-01-15
 ### :sparkles: New Features
 - [`ccad311`](https://github.com/OutrageLabs/terX/commit/ccad311bba38e11f78f39c6543df31abb38a8cd3) - dual-pane file manager + SSH key auth fixes *(commit by [@kofany](https://github.com/kofany))*
@@ -98,3 +106,4 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com> *(commit by [@kofany](ht
 - terX Cloud storage option with E2E encryption
 [v0.1.3]: https://github.com/OutrageLabs/terX/compare/v0.1.2...v0.1.3
 [v0.1.4]: https://github.com/OutrageLabs/terX/compare/v0.1.3...v0.1.4
+[v0.1.5]: https://github.com/OutrageLabs/terX/compare/v0.1.4...v0.1.5
