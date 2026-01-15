@@ -101,8 +101,7 @@ impl Cipher {
     /// Encrypt data (format: hex(nonce + ciphertext))
     #[allow(dead_code)]
     pub fn encrypt(&self, plaintext: &str) -> Result<String, CryptoError> {
-        use aes_gcm::aead::OsRng;
-        use rand::RngCore;
+        use aes_gcm::aead::{OsRng, rand_core::RngCore};
 
         let cipher = Aes256Gcm::new_from_slice(&self.key)
             .map_err(|e| CryptoError::CipherInit(e.to_string()))?;

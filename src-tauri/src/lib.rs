@@ -352,23 +352,23 @@ async fn ssh_connect(
     };
 
     // Connect
-    let (session, close_signal) = ssh::SshSession::connect(&host, port, &username, auth, &term_type, cols, rows)
+    let (session, channels, close_signal) = ssh::SshSession::connect(&host, port, &username, auth, &term_type, cols, rows)
         .await
         .map_err(|e| e.to_string())?;
 
     // Get SSH handle for SFTP before moving session
     let ssh_handle = session.handle();
 
-    // Communication channels
-    let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(256);
-    let (resize_tx, mut resize_rx) = mpsc::channel::<(u32, u32)>(16);
-
-    // Save session handle (including SSH handle for SFTP)
+    // Save session handle (using channels from ssh.rs)
     {
         let mut sessions = state.ssh_sessions.lock().await;
         sessions.insert(
             session_id.clone(),
-            SshSessionHandle { write_tx, resize_tx, ssh_handle },
+            SshSessionHandle {
+                write_tx: channels.input_tx.clone(),
+                resize_tx: channels.resize_tx.clone(),
+                ssh_handle,
+            },
         );
     }
 
@@ -383,21 +383,6 @@ async fn ssh_connect(
 
         loop {
             tokio::select! {
-                // Data to send to server
-                Some(data) = write_rx.recv() => {
-                    if let Err(e) = session.write(&data).await {
-                        log::error!("SSH write error: {}", e);
-                        break;
-                    }
-                }
-
-                // Resize
-                Some((cols, rows)) = resize_rx.recv() => {
-                    if let Err(e) = session.resize(cols, rows).await {
-                        log::error!("SSH resize error: {}", e);
-                    }
-                }
-
                 // Data from server
                 Some(data) = session.recv() => {
                     // Send to frontend
@@ -407,10 +392,6 @@ async fn ssh_connect(
                 // Session close signal (EOF/close from server)
                 _ = close_signal.wait() => {
                     log::info!("SSH session {} received close signal", sid);
-                    break;
-                }
-
-                else => {
                     break;
                 }
             }
@@ -499,7 +480,7 @@ async fn ssh_connect_host(
     let rows = rows.unwrap_or(24);
 
     // Find host and connect
-    let (session, close_signal) = {
+    let (session, channels, close_signal) = {
         let credentials = state.credentials.lock().await;
 
         // Find host by name
@@ -519,16 +500,16 @@ async fn ssh_connect_host(
     // Get SSH handle for SFTP before moving session
     let ssh_handle = session.handle();
 
-    // Communication channels
-    let (write_tx, mut write_rx) = mpsc::channel::<Vec<u8>>(256);
-    let (resize_tx, mut resize_rx) = mpsc::channel::<(u32, u32)>(16);
-
-    // Save session handle (including SSH handle for SFTP)
+    // Save session handle (using channels from ssh.rs)
     {
         let mut sessions = state.ssh_sessions.lock().await;
         sessions.insert(
             session_id.clone(),
-            SshSessionHandle { write_tx, resize_tx, ssh_handle },
+            SshSessionHandle {
+                write_tx: channels.input_tx.clone(),
+                resize_tx: channels.resize_tx.clone(),
+                ssh_handle,
+            },
         );
     }
 
@@ -543,21 +524,6 @@ async fn ssh_connect_host(
 
         loop {
             tokio::select! {
-                // Data to send to server
-                Some(data) = write_rx.recv() => {
-                    if let Err(e) = session.write(&data).await {
-                        log::error!("SSH write error: {}", e);
-                        break;
-                    }
-                }
-
-                // Resize
-                Some((cols, rows)) = resize_rx.recv() => {
-                    if let Err(e) = session.resize(cols, rows).await {
-                        log::error!("SSH resize error: {}", e);
-                    }
-                }
-
                 // Data from server
                 Some(data) = session.recv() => {
                     // Send to frontend
@@ -567,10 +533,6 @@ async fn ssh_connect_host(
                 // Session close signal (EOF/close from server)
                 _ = close_signal.wait() => {
                     log::info!("SSH session {} (host: {}) received close signal", sid, host_name);
-                    break;
-                }
-
-                else => {
                     break;
                 }
             }

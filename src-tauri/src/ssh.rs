@@ -1,10 +1,9 @@
 // ssh.rs
 // SSH client based on russh
 
-use async_trait::async_trait;
 use russh::client::{self, Config, Handler, Msg};
-use russh::{Channel, ChannelId, Disconnect};
-use ssh_key::public::PublicKey;
+use russh::keys::{PrivateKeyWithHashAlg, PublicKey};
+use russh::{Channel, ChannelMsg};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
@@ -12,14 +11,9 @@ use crate::credentials::{CredentialsManager, Host};
 use russh_sftp::client::SftpSession;
 
 /// Handler for SSH client (public for SFTP reuse)
-pub struct SshHandler {
-    /// Channel for sending data from server to frontend
-    output_tx: mpsc::Sender<Vec<u8>>,
-    /// Channel for signaling session close
-    close_tx: mpsc::Sender<()>,
-}
+/// In russh 0.56+, data is received via Channel::wait(), not Handler callbacks
+pub struct SshHandler;
 
-#[async_trait]
 impl Handler for SshHandler {
     type Error = russh::Error;
 
@@ -31,51 +25,6 @@ impl Handler for SshHandler {
         // For now, accept all keys (like ssh -o StrictHostKeyChecking=no)
         log::warn!("SSH: Accepting server key without verification");
         Ok(true)
-    }
-
-    async fn data(
-        &mut self,
-        _channel: ChannelId,
-        data: &[u8],
-        _session: &mut client::Session,
-    ) -> Result<(), Self::Error> {
-        // Send data to frontend
-        let _ = self.output_tx.send(data.to_vec()).await;
-        Ok(())
-    }
-
-    async fn extended_data(
-        &mut self,
-        _channel: ChannelId,
-        _ext: u32,
-        data: &[u8],
-        _session: &mut client::Session,
-    ) -> Result<(), Self::Error> {
-        // stderr also sent to frontend
-        let _ = self.output_tx.send(data.to_vec()).await;
-        Ok(())
-    }
-
-    async fn channel_eof(
-        &mut self,
-        _channel: ChannelId,
-        _session: &mut client::Session,
-    ) -> Result<(), Self::Error> {
-        // Server sent EOF - session ending
-        log::info!("SSH: Channel EOF received");
-        let _ = self.close_tx.send(()).await;
-        Ok(())
-    }
-
-    async fn channel_close(
-        &mut self,
-        _channel: ChannelId,
-        _session: &mut client::Session,
-    ) -> Result<(), Self::Error> {
-        // Channel closed by server
-        log::info!("SSH: Channel closed by server");
-        let _ = self.close_tx.send(()).await;
-        Ok(())
     }
 }
 
@@ -91,8 +40,28 @@ pub enum AuthMethod {
 /// SSH session
 pub struct SshSession {
     session: Arc<client::Handle<SshHandler>>,
-    channel: Channel<Msg>,
+    /// Channel for receiving data from the channel polling task
     output_rx: mpsc::Receiver<Vec<u8>>,
+}
+
+/// Channels for sending data to SSH session (can be cloned and stored)
+pub struct SshSessionChannels {
+    /// Channel for sending data to SSH server
+    pub input_tx: mpsc::Sender<Vec<u8>>,
+    /// Channel for sending resize commands
+    pub resize_tx: mpsc::Sender<(u32, u32)>,
+}
+
+/// Signal for session close (separate to avoid borrow conflicts)
+pub struct SshCloseSignal {
+    close_rx: mpsc::Receiver<()>,
+}
+
+impl SshCloseSignal {
+    /// Wait for close signal (EOF/close from server)
+    pub async fn wait(&mut self) -> Option<()> {
+        self.close_rx.recv().await
+    }
 }
 
 impl SshSession {
@@ -124,21 +93,9 @@ pub async fn create_sftp_session(handle: &client::Handle<SshHandler>) -> Result<
     Ok(sftp)
 }
 
-/// Separate channel for signaling session close (avoid double mutable borrow)
-pub struct SshCloseSignal {
-    close_rx: mpsc::Receiver<()>,
-}
-
-impl SshCloseSignal {
-    /// Wait for close signal (channel_eof or channel_close)
-    pub async fn wait(&mut self) -> Option<()> {
-        self.close_rx.recv().await
-    }
-}
-
 impl SshSession {
     /// Create new SSH session
-    /// Returns (session, close_signal) - close_signal is separate to avoid borrow conflicts
+    /// Returns (session, channels, close_signal)
     pub async fn connect(
         host: &str,
         port: u16,
@@ -147,16 +104,11 @@ impl SshSession {
         terminal_type: &str,
         cols: u32,
         rows: u32,
-    ) -> Result<(Self, SshCloseSignal), SshError> {
+    ) -> Result<(Self, SshSessionChannels, SshCloseSignal), SshError> {
         let config = Config::default();
         let config = Arc::new(config);
 
-        // Channel for communication with frontend
-        let (output_tx, output_rx) = mpsc::channel(1024);
-        // Channel for signaling close
-        let (close_tx, close_rx) = mpsc::channel(1);
-
-        let handler = SshHandler { output_tx, close_tx };
+        let handler = SshHandler;
 
         // Connection
         let addr = format!("{}:{}", host, port);
@@ -174,19 +126,20 @@ impl SshSession {
                     .authenticate_password(username, &password)
                     .await
                     .map_err(|e| SshError::Auth(e.to_string()))?
+                    .success()
             }
             AuthMethod::Key { key_data, passphrase } => {
                 log::info!("SSH: Authenticating with key (data length: {} bytes)", key_data.len());
                 let key_pair = if let Some(ref pass) = passphrase {
                     log::info!("SSH: Decoding key with passphrase");
-                    russh_keys::decode_secret_key(&key_data, Some(pass))
+                    russh::keys::decode_secret_key(&key_data, Some(pass))
                         .map_err(|e| {
                             log::error!("SSH: Key decode failed: {}", e);
                             SshError::Key(e.to_string())
                         })?
                 } else {
                     log::info!("SSH: Decoding key without passphrase");
-                    russh_keys::decode_secret_key(&key_data, None)
+                    russh::keys::decode_secret_key(&key_data, None)
                         .map_err(|e| {
                             log::error!("SSH: Key decode failed: {}", e);
                             SshError::Key(e.to_string())
@@ -196,13 +149,13 @@ impl SshSession {
                 log::info!("SSH: Calling authenticate_publickey...");
 
                 // Add timeout for authentication
-                let auth_future = session.authenticate_publickey(username, Arc::new(key_pair));
+                let auth_future = session.authenticate_publickey(username, PrivateKeyWithHashAlg::new(Arc::new(key_pair), None));
                 match tokio::time::timeout(std::time::Duration::from_secs(30), auth_future).await {
                     Ok(result) => {
                         match result {
                             Ok(auth_result) => {
-                                log::info!("SSH: authenticate_publickey result: {}", auth_result);
-                                auth_result
+                                log::info!("SSH: authenticate_publickey result: {:?}", auth_result);
+                                auth_result.success()
                             }
                             Err(e) => {
                                 log::error!("SSH: Key auth error: {}", e);
@@ -221,16 +174,17 @@ impl SshSession {
                 let key_data = std::fs::read_to_string(&path)
                     .map_err(|e| SshError::Key(format!("Cannot read key file: {}", e)))?;
                 let key_pair = if let Some(pass) = passphrase {
-                    russh_keys::decode_secret_key(&key_data, Some(&pass))
+                    russh::keys::decode_secret_key(&key_data, Some(&pass))
                         .map_err(|e| SshError::Key(e.to_string()))?
                 } else {
-                    russh_keys::decode_secret_key(&key_data, None)
+                    russh::keys::decode_secret_key(&key_data, None)
                         .map_err(|e| SshError::Key(e.to_string()))?
                 };
                 session
-                    .authenticate_publickey(username, Arc::new(key_pair))
+                    .authenticate_publickey(username, PrivateKeyWithHashAlg::new(Arc::new(key_pair), None))
                     .await
                     .map_err(|e| SshError::Auth(e.to_string()))?
+                    .success()
             }
             AuthMethod::Agent => {
                 log::info!("SSH: Authenticating with SSH agent");
@@ -273,30 +227,101 @@ impl SshSession {
             .await
             .map_err(|e| SshError::Channel(e.to_string()))?;
 
+        // Create channels for communication
+        let (output_tx, output_rx) = mpsc::channel(8192);
+        let (input_tx, input_rx) = mpsc::channel(1024);
+        let (resize_tx, resize_rx) = mpsc::channel(16);
+        let (close_tx, close_rx) = mpsc::channel(1);
+
+        // Spawn task to poll channel and forward data
+        tokio::spawn(Self::channel_loop(channel, output_tx, input_rx, resize_rx, close_tx));
+
         Ok((
             Self {
                 session: Arc::new(session),
-                channel,
                 output_rx,
+            },
+            SshSessionChannels {
+                input_tx,
+                resize_tx,
             },
             SshCloseSignal { close_rx },
         ))
     }
 
-    /// Send data to SSH server
-    pub async fn write(&self, data: &[u8]) -> Result<(), SshError> {
-        self.channel
-            .data(data)
-            .await
-            .map_err(|e| SshError::Write(e.to_string()))
-    }
+    /// Background task that polls Channel::wait() and handles I/O
+    async fn channel_loop(
+        mut channel: Channel<Msg>,
+        output_tx: mpsc::Sender<Vec<u8>>,
+        mut input_rx: mpsc::Receiver<Vec<u8>>,
+        mut resize_rx: mpsc::Receiver<(u32, u32)>,
+        close_tx: mpsc::Sender<()>,
+    ) {
+        loop {
+            tokio::select! {
+                // Data from SSH server (via channel.wait())
+                msg = channel.wait() => {
+                    match msg {
+                        Some(ChannelMsg::Data { data }) => {
+                            if output_tx.send(data.to_vec()).await.is_err() {
+                                log::warn!("SSH: Output channel closed");
+                                break;
+                            }
+                        }
+                        Some(ChannelMsg::ExtendedData { data, .. }) => {
+                            // stderr
+                            if output_tx.send(data.to_vec()).await.is_err() {
+                                log::warn!("SSH: Output channel closed");
+                                break;
+                            }
+                        }
+                        Some(ChannelMsg::Eof) => {
+                            log::info!("SSH: Channel EOF received");
+                            let _ = close_tx.send(()).await;
+                            break;
+                        }
+                        Some(ChannelMsg::Close) => {
+                            log::info!("SSH: Channel closed by server");
+                            let _ = close_tx.send(()).await;
+                            break;
+                        }
+                        Some(ChannelMsg::ExitStatus { exit_status }) => {
+                            log::info!("SSH: Exit status: {}", exit_status);
+                            // Don't break - might still have data
+                        }
+                        Some(ChannelMsg::ExitSignal { signal_name, .. }) => {
+                            log::info!("SSH: Exit signal: {:?}", signal_name);
+                        }
+                        Some(ChannelMsg::WindowAdjusted { .. }) => {
+                            // Flow control - handled automatically
+                        }
+                        Some(_) => {
+                            // Other messages - ignore
+                        }
+                        None => {
+                            log::info!("SSH: Channel closed");
+                            let _ = close_tx.send(()).await;
+                            break;
+                        }
+                    }
+                }
 
-    /// Change terminal size
-    pub async fn resize(&self, cols: u32, rows: u32) -> Result<(), SshError> {
-        self.channel
-            .window_change(cols, rows, 0, 0)
-            .await
-            .map_err(|e| SshError::Resize(e.to_string()))
+                // Data to send to SSH server
+                Some(data) = input_rx.recv() => {
+                    if let Err(e) = channel.data(&data[..]).await {
+                        log::error!("SSH: Write error: {}", e);
+                        break;
+                    }
+                }
+
+                // Resize terminal
+                Some((cols, rows)) = resize_rx.recv() => {
+                    if let Err(e) = channel.window_change(cols, rows, 0, 0).await {
+                        log::error!("SSH: Resize error: {}", e);
+                    }
+                }
+            }
+        }
     }
 
     /// Receive data from server (non-blocking)
@@ -309,23 +334,8 @@ impl SshSession {
     pub async fn recv(&mut self) -> Option<Vec<u8>> {
         self.output_rx.recv().await
     }
-
-    /// Close session
-    #[allow(dead_code)]
-    pub async fn close(self) -> Result<(), SshError> {
-        self.channel
-            .close()
-            .await
-            .map_err(|e| SshError::Close(e.to_string()))?;
-
-        self.session
-            .disconnect(Disconnect::ByApplication, "Closing session", "en")
-            .await
-            .map_err(|e| SshError::Close(e.to_string()))?;
-
-        Ok(())
-    }
 }
+
 
 /// Helper function to create session from sshManager host
 #[allow(dead_code)]
@@ -335,7 +345,7 @@ pub async fn connect_from_host(
     key_index: Option<usize>,
     cols: u32,
     rows: u32,
-) -> Result<(SshSession, SshCloseSignal), SshError> {
+) -> Result<(SshSession, SshSessionChannels, SshCloseSignal), SshError> {
     let port: u16 = host.port.parse().unwrap_or(22);
     let terminal_type = if host.terminal_type.is_empty() {
         "xterm-ghostty"
@@ -421,11 +431,4 @@ pub enum SshError {
     Key(String),
     #[error("Channel error: {0}")]
     Channel(String),
-    #[error("Write error: {0}")]
-    Write(String),
-    #[error("Resize error: {0}")]
-    Resize(String),
-    #[error("Close error: {0}")]
-    #[allow(dead_code)]
-    Close(String),
 }
