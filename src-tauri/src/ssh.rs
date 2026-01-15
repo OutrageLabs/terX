@@ -326,8 +326,15 @@ impl SshSession {
                 log::info!("SSH: Key decoded successfully");
                 log::info!("SSH: Calling authenticate_publickey...");
 
+                // Get best supported RSA hash algorithm (rsa-sha2-256/512 instead of deprecated ssh-rsa)
+                let rsa_hash = session.best_supported_rsa_hash().await
+                    .ok()
+                    .flatten()
+                    .flatten();
+                log::info!("SSH: Using RSA hash algorithm: {:?}", rsa_hash);
+
                 // Add timeout for authentication
-                let auth_future = session.authenticate_publickey(username, PrivateKeyWithHashAlg::new(Arc::new(key_pair), None));
+                let auth_future = session.authenticate_publickey(username, PrivateKeyWithHashAlg::new(Arc::new(key_pair), rsa_hash));
                 match tokio::time::timeout(std::time::Duration::from_secs(30), auth_future).await {
                     Ok(result) => {
                         match result {
@@ -358,8 +365,16 @@ impl SshSession {
                     russh::keys::decode_secret_key(&key_data, None)
                         .map_err(|e| SshError::Key(e.to_string()))?
                 };
+
+                // Get best supported RSA hash algorithm (rsa-sha2-256/512 instead of deprecated ssh-rsa)
+                let rsa_hash = session.best_supported_rsa_hash().await
+                    .ok()
+                    .flatten()
+                    .flatten();
+                log::info!("SSH: Using RSA hash algorithm: {:?}", rsa_hash);
+
                 session
-                    .authenticate_publickey(username, PrivateKeyWithHashAlg::new(Arc::new(key_pair), None))
+                    .authenticate_publickey(username, PrivateKeyWithHashAlg::new(Arc::new(key_pair), rsa_hash))
                     .await
                     .map_err(|e| SshError::Auth(e.to_string()))?
                     .success()
