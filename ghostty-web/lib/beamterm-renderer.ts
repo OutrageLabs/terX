@@ -84,6 +84,9 @@ export class BeamtermRendererAdapter implements IRenderer {
   private lastCursorBlinkVisible: boolean = true;
   private skippedFrames: number = 0;
 
+  // Mouse state for selection rendering (don't skip frames during mouse drag)
+  private isMouseDown: boolean = false;
+
   // PERFORMANCE: Reusable CellStyle objects to avoid allocations per frame
   // We cache the last style to reuse when fg/bg/styleBits match
   private cachedStyle: CellStyle | null = null;
@@ -188,6 +191,18 @@ export class BeamtermRendererAdapter implements IRenderer {
     if (this.cursorBlink) {
       this.startCursorBlink();
     }
+
+    // Track mouse state for smooth selection rendering
+    // During mouse drag, we don't skip frames to ensure selection updates smoothly
+    this.canvas.addEventListener('mousedown', () => {
+      this.isMouseDown = true;
+    });
+    this.canvas.addEventListener('mouseup', () => {
+      this.isMouseDown = false;
+    });
+    this.canvas.addEventListener('mouseleave', () => {
+      this.isMouseDown = false;
+    });
   }
 
   // ============================================================================
@@ -258,7 +273,8 @@ export class BeamtermRendererAdapter implements IRenderer {
     const needsFullRedraw = forceAll || (bufferWithDirty.needsFullRedraw?.() ?? false);
 
     // Skip render if nothing changed
-    if (!needsFullRedraw && !bufferIsDirty && !cursorMoved && !cursorVisibilityChanged && !cursorBlinkChanged) {
+    // Note: Don't skip during mouse drag (isMouseDown) to ensure smooth selection updates
+    if (!needsFullRedraw && !bufferIsDirty && !cursorMoved && !cursorVisibilityChanged && !cursorBlinkChanged && !this.isMouseDown) {
       this.skippedFrames++;
       this.renderStats.skippedFrames++;
       this.renderStats._skippedThisSecond++;
