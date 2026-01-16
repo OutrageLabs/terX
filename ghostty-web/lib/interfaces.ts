@@ -50,7 +50,7 @@ export interface RendererOptions {
   fontSize?: number; // Default: 15
   fontFamily?: string; // Default: 'monospace'
   lineHeight?: number; // Line height multiplier, default: 1.0 (use 1.2 for Nerd Fonts)
-  cursorStyle?: 'block' | 'underline' | 'bar'; // Default: 'block'
+  cursorStyle?: 'block' | 'underline'; // Default: 'block'
   cursorBlink?: boolean; // Default: false
   theme?: ITheme;
   devicePixelRatio?: number; // Default: window.devicePixelRatio
@@ -83,7 +83,7 @@ export interface ITerminalOptions {
   cols?: number; // Default: 80
   rows?: number; // Default: 24
   cursorBlink?: boolean; // Default: false
-  cursorStyle?: 'block' | 'underline' | 'bar';
+  cursorStyle?: 'block' | 'underline';
   theme?: ITheme;
   scrollback?: number; // Default: 1000
   fontSize?: number; // Default: 15

@@ -495,7 +495,7 @@ export interface RenderStateCursor {
   viewportY: number;
   visible: boolean;
   blinking: boolean;
-  style: 'block' | 'underline' | 'bar';
+  style: 'block' | 'underline';
 }
 
 /**

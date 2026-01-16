@@ -18,8 +18,8 @@ const SHORTCUTS = {
     { keys: 'F3', descKey: 'debugPanel' },
   ],
   terminal: [
-    { keys: 'Ctrl+Shift+C', descKey: 'copySelection' },
-    { keys: 'Ctrl+Shift+V', descKey: 'pasteClipboard' },
+    { keys: 'Cmd+C / Auto', descKey: 'copySelection' },
+    { keys: 'Cmd/Ctrl+V', descKey: 'pasteClipboard' },
     { keys: 'Shift+PageUp', descKey: 'scrollUp' },
     { keys: 'Shift+PageDown', descKey: 'scrollDown' },
     { keys: 'Cmd/Ctrl++', descKey: 'zoomIn' },
@@ -32,7 +32,7 @@ const SHORTCUTS = {
     { keys: 'Ctrl+W', descKey: 'closeTab' },
   ],
   fileManager: [
-    { keys: 'Ctrl+F5', descKey: 'openFileManager' },
+    { keys: 'F5', descKey: 'openFileManager' },
     { keys: 'Tab', descKey: 'switchPanels' },
     { keys: 'Enter', descKey: 'openDownload' },
     { keys: 'F5', descKey: 'copy' },
@@ -137,7 +137,7 @@ function renderAboutTab(): string {
 
         <div class="help-about-footer">
           <span>${t('help.about.madeWith')}</span>
-          <span class="help-about-copyright">© 2024 OutrageLabs</span>
+          <span class="help-about-copyright">© 2026 OutrageLabs</span>
         </div>
       </div>
     </div>

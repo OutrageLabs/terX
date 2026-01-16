@@ -24,6 +24,8 @@ export interface StorageConfig {
   uiFontSize: number;      // UI font size in px
   terminalFontFamily: string;  // "fira-code" | "hack" | "system-mono"
   terminalFontSize: number;    // Terminal font size in px
+  cursorStyle: 'block' | 'underline';  // Cursor shape
+  cursorBlink: boolean;    // Cursor blinking
   // Legacy - kept for backwards compatibility
   fontSize?: number;
   ownSupabase?: {
@@ -40,6 +42,8 @@ const DEFAULT_CONFIG: StorageConfig = {
   uiFontSize: 14,
   terminalFontFamily: "fira-code",
   terminalFontSize: 15,
+  cursorStyle: "block",
+  cursorBlink: false,
   ownSupabase: {
     url: null,
     key: null,
