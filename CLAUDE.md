@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # terX - Cross-Platform SSH Client
 
 ## Project Overview
@@ -167,6 +171,9 @@ bun run tauri build
 # Output:
 # - macOS app: src-tauri/target/release/bundle/macos/terX.app
 # - DMG:       src-tauri/target/release/bundle/dmg/terX_0.1.0_aarch64.dmg
+
+# Run tests for ghostty-web library (if modifying terminal code)
+# From ghostty-web/ folder: bun test
 ```
 
 ## Aktualizacja beamterm
@@ -269,6 +276,47 @@ Master password encrypts all sensitive data using AES-256-GCM with PBKDF2.
 - `keyring` - System keychain
 - `tauri-plugin-deep-link` - OAuth callbacks
 - `tauri-plugin-opener` - Open URLs in browser
+
+## Keyboard Shortcuts (Application)
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+H` | Toggle sidebar (host list) |
+| `Ctrl+,` | Toggle settings panel |
+| `Ctrl+Tab` | Switch to next tab |
+| `Ctrl+Shift+Tab` | Switch to previous tab |
+| `Ctrl+W` | Close current tab |
+| `F5` | Toggle file manager (when connected) |
+| `Ctrl+F5` | Open file manager for transfer-only mode |
+| `F1` | Toggle shortcuts help panel |
+| `F3` or `Alt+D` | Open debug window |
+| `Ctrl+Shift+E` | Open emoji picker |
+| `Shift+PageUp/PageDown` | Scroll terminal history |
+| `Ctrl/Cmd++/-/0` | Zoom terminal font |
+
+## Internationalization (i18n)
+
+Translation files are in `src/i18n/`:
+- `en-US.json` - English (default)
+- `pl-PL.json` - Polish
+
+Add new translations by creating a new JSON file with the same structure.
+
+## Tauri Commands (IPC)
+
+Key commands exposed from Rust to frontend (via `invoke()`):
+
+| Command | Purpose |
+|---------|---------|
+| `ssh_connect` | Establish SSH connection |
+| `ssh_write` | Send data to SSH session |
+| `ssh_resize` | Resize PTY |
+| `ssh_disconnect` | Close SSH session |
+| `sftp_open` | Open SFTP session on existing SSH |
+| `sftp_list_dir` | List remote directory |
+| `sftp_download/upload` | Transfer files |
+| `config_load/save` | App configuration |
+| `local_storage_*` | Encrypted local storage |
 
 ## Language
 

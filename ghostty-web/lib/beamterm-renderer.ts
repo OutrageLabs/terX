@@ -30,7 +30,7 @@ export interface BeamtermRendererOptions {
   fontSize?: number;
   fontFamily?: string;
   lineHeight?: number;
-  cursorStyle?: 'block' | 'underline' | 'bar';
+  cursorStyle?: 'block' | 'underline';
   cursorBlink?: boolean;
   theme?: ITheme;
 }
@@ -65,7 +65,7 @@ export class BeamtermRendererAdapter implements IRenderer {
   private currentBuffer: IRenderable | null = null;
 
   // Cursor state
-  private cursorStyle: 'block' | 'underline' | 'bar' = 'block';
+  private cursorStyle: 'block' | 'underline' = 'block';
   private cursorBlink: boolean = false;
   private cursorVisible: boolean = true;
   private cursorBlinkInterval?: number;
@@ -365,7 +365,7 @@ export class BeamtermRendererAdapter implements IRenderer {
 
       // Render cursor (only if visible and blinking state allows)
       if (cursor.visible && this.cursorVisible) {
-        this.renderCursor(batch, cursor.x, cursor.y);
+        this.renderCursor(batch, cursor.x, cursor.y, buffer);
       }
 
       // Render (flush is automatic since beamterm 0.4.0)
@@ -598,22 +598,48 @@ export class BeamtermRendererAdapter implements IRenderer {
   }
 
   /**
-   * Render cursor
+   * Render cursor with the character underneath visible
    */
-  private renderCursor(batch: Batch, x: number, y: number): void {
+  private renderCursor(batch: Batch, x: number, y: number, buffer: IRenderable): void {
     const cursorColor = this.hexToColor(this.theme.cursor);
     const cursorAccent = this.hexToColor(this.theme.cursorAccent);
 
-    // Get the character under cursor for proper rendering
-    let symbol = '█';
-    if (this.cursorStyle === 'underline') {
-      symbol = '▁';
-    } else if (this.cursorStyle === 'bar') {
-      symbol = '▏';
+    // Get the cell at cursor position to show the character underneath
+    const line = buffer.getLine(y);
+    let charUnderCursor = ' ';
+    let charFg = this.hexToColor(this.theme.foreground);
+    let charBg = this.hexToColor(this.theme.background);
+
+    if (line && x < line.length) {
+      const ghosttyCell = line[x];
+      if (ghosttyCell && ghosttyCell.codepoint > 0) {
+        // Get character from codepoint or grapheme
+        if (ghosttyCell.grapheme_len > 0 && buffer.getGraphemeString) {
+          charUnderCursor = buffer.getGraphemeString(y, x) || String.fromCodePoint(ghosttyCell.codepoint);
+        } else {
+          charUnderCursor = String.fromCodePoint(ghosttyCell.codepoint);
+        }
+        charFg = this.rgbToColor(ghosttyCell.fg_r, ghosttyCell.fg_g, ghosttyCell.fg_b);
+        charBg = this.rgbToColor(ghosttyCell.bg_r, ghosttyCell.bg_g, ghosttyCell.bg_b);
+      }
     }
 
-    const cursorCellStyle = style().fg(cursorColor).bg(cursorAccent);
-    batch.cell(x, y, cell(symbol, cursorCellStyle));
+    let cursorCellStyle: CellStyle;
+
+    switch (this.cursorStyle) {
+      case 'block':
+        // Block cursor: show character with inverted colors (reverse video)
+        // Use cursor color as background, cursor accent (or char fg) as foreground
+        cursorCellStyle = style().fg(cursorAccent).bg(cursorColor);
+        batch.cell(x, y, cell(charUnderCursor, cursorCellStyle));
+        break;
+
+      case 'underline':
+        // Underline cursor: show character normally with underline added
+        cursorCellStyle = style().fg(charFg).bg(charBg).underline();
+        batch.cell(x, y, cell(charUnderCursor, cursorCellStyle));
+        break;
+    }
   }
 
   // ============================================================================
@@ -641,7 +667,7 @@ export class BeamtermRendererAdapter implements IRenderer {
   // Configuration Methods
   // ============================================================================
 
-  setCursorStyle(cursorStyle: 'block' | 'underline' | 'bar'): void {
+  setCursorStyle(cursorStyle: 'block' | 'underline'): void {
     this.cursorStyle = cursorStyle;
   }
 
