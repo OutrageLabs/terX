@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.7] - 2026-01-16
+### :sparkles: New Features
+- [`7dbe012`](https://github.com/OutrageLabs/terX/commit/7dbe012b9983a5035ce77b4dcb144d47e6d61a22) - Implement SSH host key verification system *(commit by [@kofany](https://github.com/kofany))*
+
+### :wrench: Chores
+- [`5b99243`](https://github.com/OutrageLabs/terX/commit/5b992435f7f563028834fdbfa16793083e491d4f) - bump version to 0.1.7 *(commit by [@kofany](https://github.com/kofany))*
+
+
 ## [v0.1.6] - 2026-01-15
 ### :memo: Documentation Changes
 - [`a6c3b86`](https://github.com/OutrageLabs/terX/commit/a6c3b8649b056e879bf056abd61bf7f8f4b4e659) - update CHANGELOG.md for v0.1.5 *(commit by [@kofany](https://github.com/kofany))*
@@ -113,3 +121,4 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com> *(commit by [@kofany](ht
 [v0.1.4]: https://github.com/OutrageLabs/terX/compare/v0.1.3...v0.1.4
 [v0.1.5]: https://github.com/OutrageLabs/terX/compare/v0.1.4...v0.1.5
 [v0.1.6]: https://github.com/OutrageLabs/terX/compare/v0.1.5...v0.1.6
+[v0.1.7]: https://github.com/OutrageLabs/terX/compare/v0.1.6...v0.1.7
