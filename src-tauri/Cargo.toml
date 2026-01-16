@@ -27,7 +27,7 @@ tauri-plugin-single-instance = "2.3.6"
 portable-pty = "0.9"
 tokio = { version = "1", features = ["sync", "io-util", "rt-multi-thread", "macros", "net"] }
 parking_lot = "0.12.4"
-chrono = "0.4.42"
+chrono = { version = "0.4.42", features = ["serde"] }
 dirs = "6.0"
 
 # SSH client
@@ -42,6 +42,7 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-feature
 aes-gcm = "0.10.3"
 base64 = "0.22.1"
 sha2 = "0.10.9"
+md-5 = "0.10"
 pbkdf2 = { version = "0.12", features = ["simple"] }
 hex = "0.4"
 

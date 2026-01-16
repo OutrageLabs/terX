@@ -1,4 +1,5 @@
 mod credentials;
+mod hostkeys;
 mod sftp;
 mod ssh;
 
@@ -7,7 +8,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{mpsc, oneshot, Mutex};
+
+use hostkeys::{KnownHostsStore, UserDecision, VerificationMode};
 
 // Application state for SSH sessions
 pub struct AppState {
@@ -19,6 +22,14 @@ pub struct AppState {
     active_transfers: Mutex<HashMap<String, tokio::sync::watch::Sender<bool>>>,
     // Credentials manager
     credentials: Mutex<credentials::CredentialsManager>,
+    // Known hosts store for host key verification
+    known_hosts: Arc<Mutex<KnownHostsStore>>,
+    // Pending host key verifications (verification_id -> decision sender)
+    pending_verifications: Mutex<HashMap<String, oneshot::Sender<UserDecision>>>,
+    // Channel to receive pending verifications from SSH handlers
+    verification_rx: Mutex<mpsc::Receiver<(String, oneshot::Sender<UserDecision>)>>,
+    // Channel to send pending verifications (given to SSH handlers)
+    verification_tx: mpsc::Sender<(String, oneshot::Sender<UserDecision>)>,
 }
 
 struct SshSessionHandle {
@@ -34,14 +45,25 @@ struct SftpSessionHandle {
     ssh_session_id: String,
 }
 
-impl Default for AppState {
-    fn default() -> Self {
+impl AppState {
+    fn new() -> Self {
+        let (verification_tx, verification_rx) = mpsc::channel(32);
         Self {
             ssh_sessions: Mutex::new(HashMap::new()),
             sftp_sessions: Mutex::new(HashMap::new()),
             active_transfers: Mutex::new(HashMap::new()),
             credentials: Mutex::new(credentials::CredentialsManager::new()),
+            known_hosts: Arc::new(Mutex::new(KnownHostsStore::new())),
+            pending_verifications: Mutex::new(HashMap::new()),
+            verification_rx: Mutex::new(verification_rx),
+            verification_tx,
         }
+    }
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -118,6 +140,10 @@ pub struct AppConfig {
     pub terminal_font_family: String,
     #[serde(rename = "terminalFontSize", default = "default_terminal_font_size")]
     pub terminal_font_size: i32,
+    #[serde(rename = "cursorStyle", default = "default_cursor_style")]
+    pub cursor_style: String,
+    #[serde(rename = "cursorBlink", default)]
+    pub cursor_blink: bool,
     // Legacy - kept for backwards compatibility
     #[serde(rename = "fontSize", skip_serializing_if = "Option::is_none")]
     pub font_size: Option<i32>,
@@ -128,6 +154,7 @@ pub struct AppConfig {
 fn default_ui_font_size() -> i32 { 14 }
 fn default_terminal_font_family() -> String { "fira-code".to_string() }
 fn default_terminal_font_size() -> i32 { 15 }
+fn default_cursor_style() -> String { "block".to_string() }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct OwnSupabaseConfig {
@@ -144,6 +171,8 @@ impl Default for AppConfig {
             ui_font_size: 14,
             terminal_font_family: "fira-code".to_string(),
             terminal_font_size: 15,
+            cursor_style: "block".to_string(),
+            cursor_blink: false,
             font_size: None,
             own_supabase: None,
         }
@@ -379,6 +408,7 @@ async fn ssh_connect(
     use uuid::Uuid;
 
     let session_id = Uuid::new_v4().to_string();
+    let verification_id = Uuid::new_v4().to_string();
     let term_type = terminal_type.unwrap_or_else(|| "xterm-ghostty".to_string());
     let cols = cols.unwrap_or(80);
     let rows = rows.unwrap_or(24);
@@ -403,8 +433,18 @@ async fn ssh_connect(
         return Err("No authentication method provided".to_string());
     };
 
-    // Connect
-    let (session, channels, close_signal) = ssh::SshSession::connect(&host, port, &username, auth, &term_type, cols, rows)
+    // Prepare host key verification parameters
+    let verification = ssh::HostKeyVerificationParams {
+        verification_id: verification_id.clone(),
+        app_handle: app.clone(),
+        known_hosts: state.known_hosts.clone(),
+        pending_tx: state.verification_tx.clone(),
+    };
+
+    // Connect with host key verification
+    let (session, channels, close_signal) = ssh::SshSession::connect_with_verification(
+        &host, port, &username, auth, &term_type, cols, rows, verification
+    )
         .await
         .map_err(|e| e.to_string())?;
 
@@ -1016,6 +1056,157 @@ async fn local_rename(old_path: String, new_path: String) -> Result<(), String> 
 }
 
 // ============================================================================
+// Host Key Verification Commands
+// ============================================================================
+
+/// Known host entry for frontend
+#[derive(serde::Serialize)]
+pub struct KnownHostEntry {
+    pub host_id: String,
+    pub fingerprint_sha256: String,
+    pub fingerprint_md5: String,
+    pub algorithm: String,
+    pub first_seen: String,
+    pub last_seen: String,
+    pub connection_count: u64,
+}
+
+/// Host key verification settings for frontend
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct HostKeySettings {
+    pub verification_mode: String,
+}
+
+/// Handle user decision on host key verification
+#[tauri::command]
+async fn host_key_decision(
+    state: State<'_, Arc<AppState>>,
+    verification_id: String,
+    decision: String,
+) -> Result<(), String> {
+    let user_decision = match decision.as_str() {
+        "trust_permanently" => UserDecision::TrustPermanently,
+        "trust_once" => UserDecision::TrustOnce,
+        "reject" => UserDecision::Reject,
+        _ => return Err(format!("Invalid decision: {}", decision)),
+    };
+
+    // First check if there's a pending verification from the receiver
+    {
+        let mut rx = state.verification_rx.lock().await;
+        // Try to receive any pending verifications (non-blocking)
+        while let Ok((vid, tx)) = rx.try_recv() {
+            let mut pending = state.pending_verifications.lock().await;
+            pending.insert(vid, tx);
+        }
+    }
+
+    // Now look for our verification
+    let sender = {
+        let mut pending = state.pending_verifications.lock().await;
+        pending.remove(&verification_id)
+    };
+
+    match sender {
+        Some(tx) => {
+            tx.send(user_decision).map_err(|_| "Verification channel closed".to_string())?;
+            log::info!("Host key decision sent for verification_id: {}", verification_id);
+            Ok(())
+        }
+        None => {
+            log::warn!("No pending verification found for id: {}", verification_id);
+            Err(format!("No pending verification found for id: {}", verification_id))
+        }
+    }
+}
+
+/// Get host key verification settings
+#[tauri::command]
+async fn get_host_key_settings(
+    state: State<'_, Arc<AppState>>,
+) -> Result<HostKeySettings, String> {
+    let known_hosts = state.known_hosts.lock().await;
+    let mode = known_hosts.verification_mode();
+
+    let mode_str = match mode {
+        VerificationMode::Strict => "strict",
+        VerificationMode::Ask => "ask",
+        VerificationMode::AcceptNew => "accept_new",
+        VerificationMode::AcceptAll => "accept_all",
+    };
+
+    Ok(HostKeySettings {
+        verification_mode: mode_str.to_string(),
+    })
+}
+
+/// Set host key verification mode
+#[tauri::command]
+async fn set_host_key_verification_mode(
+    state: State<'_, Arc<AppState>>,
+    mode: String,
+) -> Result<(), String> {
+    let verification_mode = match mode.as_str() {
+        "strict" => VerificationMode::Strict,
+        "ask" => VerificationMode::Ask,
+        "accept_new" => VerificationMode::AcceptNew,
+        "accept_all" => VerificationMode::AcceptAll,
+        _ => return Err(format!("Invalid verification mode: {}", mode)),
+    };
+
+    let mut known_hosts = state.known_hosts.lock().await;
+    known_hosts.set_verification_mode(verification_mode);
+    known_hosts.save().map_err(|e| e.to_string())?;
+
+    log::info!("Host key verification mode set to: {}", mode);
+    Ok(())
+}
+
+/// List all known hosts
+#[tauri::command]
+async fn list_known_hosts(
+    state: State<'_, Arc<AppState>>,
+) -> Result<Vec<KnownHostEntry>, String> {
+    let known_hosts = state.known_hosts.lock().await;
+    let hosts = known_hosts.list_hosts();
+
+    let entries: Vec<KnownHostEntry> = hosts
+        .iter()
+        .map(|(host_id, key)| KnownHostEntry {
+            host_id: host_id.clone(),
+            fingerprint_sha256: format!("SHA256:{}", key.fingerprint_sha256),
+            fingerprint_md5: key.fingerprint_md5.clone(),
+            algorithm: key.algorithm.clone(),
+            first_seen: key.first_seen.to_rfc3339(),
+            last_seen: key.last_seen.to_rfc3339(),
+            connection_count: key.connection_count,
+        })
+        .collect();
+
+    Ok(entries)
+}
+
+/// Remove a known host
+#[tauri::command]
+async fn remove_known_host(
+    state: State<'_, Arc<AppState>>,
+    host: String,
+    port: u16,
+) -> Result<bool, String> {
+    let mut known_hosts = state.known_hosts.lock().await;
+    known_hosts.remove_host_key(&host, port)
+}
+
+/// Import hosts from system known_hosts file
+#[tauri::command]
+async fn import_system_known_hosts(
+    state: State<'_, Arc<AppState>>,
+) -> Result<usize, String> {
+    let mut known_hosts = state.known_hosts.lock().await;
+    known_hosts.import_system_known_hosts()
+}
+
+// ============================================================================
 // App Runner
 // ============================================================================
 
@@ -1060,6 +1251,13 @@ pub fn run() {
             credentials_sync,
             credentials_load,
             credentials_list_hosts,
+            // Host Key Verification
+            host_key_decision,
+            get_host_key_settings,
+            set_host_key_verification_mode,
+            list_known_hosts,
+            remove_known_host,
+            import_system_known_hosts,
             // App
             app_exit,
             get_system_info,
