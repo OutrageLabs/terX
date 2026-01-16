@@ -1,6 +1,6 @@
 {
   "name": "terx",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Cross-platform SSH client with GPU-accelerated rendering",
   "type": "module",
   "scripts": {

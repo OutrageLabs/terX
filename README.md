@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-brightgreen)](https://github.com/OutrageLabs/terX/releases)
-[![Version](https://img.shields.io/badge/Version-0.1.7-orange)](https://github.com/OutrageLabs/terX/releases/tag/v0.1.7)
+[![Version](https://img.shields.io/badge/Version-0.1.8-orange)](https://github.com/OutrageLabs/terX/releases/tag/v0.1.8)
 
 **Secure SSH connections with GPU-accelerated terminal rendering**
 
