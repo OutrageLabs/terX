@@ -101,7 +101,7 @@ jobs:
             chmod +x terx_*.AppImage
             ./terx_*.AppImage
             ```
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: --target ${{ matrix.target }}
 
