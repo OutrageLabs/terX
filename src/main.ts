@@ -48,6 +48,7 @@ import * as themes from './lib/themes';
 import { t } from './i18n';
 import type { TerminalFontFamily } from './lib/themes';
 import { sendDebugLog } from './lib/debug-logger';
+import { handleHostKeyVerifyEvent, type HostKeyVerifyEvent } from './ui/hostkey-dialog';
 
 // Global type declarations
 declare global {
@@ -89,6 +90,8 @@ async function main(): Promise<void> {
   let currentTheme: themes.Theme;
   let terminalFontFamily: string;
   let terminalFontSize: number;
+  let cursorStyle: 'block' | 'underline' = 'block';
+  let cursorBlink: boolean = false;
   let selectionRequireShift = true; // Default: Shift+Click for selection
 
   // System info (cached from Rust backend - real values, not WebView fake)
@@ -144,6 +147,19 @@ async function main(): Promise<void> {
   // Listen for deep links via event (Windows/Linux - single instance)
   listen<string>('deep-link-received', (event) => {
     handleDeepLink(event.payload);
+  });
+
+  // ============================================================================
+  // Host Key Verification Handler
+  // ============================================================================
+  listen<HostKeyVerifyEvent>('host-key-verify', async (event) => {
+    console.log('[terX] Host key verification requested:', event.payload.key_info.host_id);
+    try {
+      const decision = await handleHostKeyVerifyEvent(event.payload);
+      console.log('[terX] Host key decision:', decision);
+    } catch (e) {
+      console.error('[terX] Host key verification failed:', e);
+    }
   });
 
   // ============================================================================
@@ -224,6 +240,8 @@ async function main(): Promise<void> {
       (config.terminalFontFamily as TerminalFontFamily) || 'fira-code'
     );
     terminalFontSize = config.terminalFontSize || 15;
+    cursorStyle = config.cursorStyle || 'block';
+    cursorBlink = config.cursorBlink || false;
 
     // Apply UI theme and font size immediately
     themes.applyUITheme(currentTheme);
@@ -313,8 +331,8 @@ async function main(): Promise<void> {
       fontSize: terminalFontSize,
       fontFamily: terminalFontFamily,
       lineHeight: 1.0,
-      cursorStyle: 'bar',
-      cursorBlink: true,
+      cursorStyle: cursorStyle,
+      cursorBlink: cursorBlink,
       theme: buildTerminalTheme(currentTheme),
       scrollback: 10000,
       renderer: 'beamterm',
@@ -855,6 +873,30 @@ async function main(): Promise<void> {
 
     updateIndicator('beamterm', size);
     console.log(`[terX] Terminal font size changed to: ${size}px`);
+  }) as EventListener);
+
+  // Cursor style change - apply to ALL terminals
+  window.addEventListener('terx-cursor-style-change', ((e: CustomEvent) => {
+    const style = e.detail as 'block' | 'underline';
+    cursorStyle = style;
+
+    for (const session of sessionManager.getAllSessions()) {
+      session.terminal.options.cursorStyle = style;
+    }
+
+    console.log(`[terX] Cursor style changed to: ${style}`);
+  }) as EventListener);
+
+  // Cursor blink change - apply to ALL terminals
+  window.addEventListener('terx-cursor-blink-change', ((e: CustomEvent) => {
+    const blink = e.detail as boolean;
+    cursorBlink = blink;
+
+    for (const session of sessionManager.getAllSessions()) {
+      session.terminal.options.cursorBlink = blink;
+    }
+
+    console.log(`[terX] Cursor blink changed to: ${blink}`);
   }) as EventListener);
 
   // ============================================================================

@@ -642,6 +642,8 @@ function renderPreferencesTab(): string {
   const uiFontSize = config.uiFontSize || 14;
   const terminalFontSize = config.terminalFontSize || 15;
   const terminalFontFamily = config.terminalFontFamily || "fira-code";
+  const cursorStyle = config.cursorStyle || "block";
+  const cursorBlink = config.cursorBlink || false;
 
   return `
     <!-- Terminal Section -->
@@ -666,6 +668,24 @@ function renderPreferencesTab(): string {
             <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
           </button>
           <span class="text-xs text-text w-8 text-right" data-terminal-font-size-display>${terminalFontSize}px</span>
+        </div>
+      </div>
+    </div>
+    <div class="settings-row" style="margin-top: 0.75rem;">
+      <div class="form-group">
+        <label class="text-label">${t("settings.preferences.cursorStyle")}</label>
+        <select class="input select" data-action="change-cursor-style">
+          <option value="block" ${cursorStyle === "block" ? "selected" : ""}>█ Block</option>
+          <option value="underline" ${cursorStyle === "underline" ? "selected" : ""}>▁ Underline</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="text-label">${t("settings.preferences.cursorBlink")}</label>
+        <div class="flex items-center h-9">
+          <label class="toggle-switch">
+            <input type="checkbox" data-action="toggle-cursor-blink" ${cursorBlink ? "checked" : ""}>
+            <span class="toggle-slider"></span>
+          </label>
         </div>
       </div>
     </div>
@@ -742,6 +762,20 @@ function setupPreferencesEventListeners(): void {
     const fontFamily = (e.target as HTMLSelectElement).value as TerminalFontFamily;
     await storage.saveConfig({ terminalFontFamily: fontFamily });
     window.dispatchEvent(new CustomEvent("terx-terminal-font-change", { detail: { family: fontFamily } }));
+  });
+
+  // Cursor style change
+  content.querySelector('[data-action="change-cursor-style"]')?.addEventListener("change", async (e) => {
+    const style = (e.target as HTMLSelectElement).value as 'block' | 'underline';
+    await storage.saveConfig({ cursorStyle: style });
+    window.dispatchEvent(new CustomEvent("terx-cursor-style-change", { detail: style }));
+  });
+
+  // Cursor blink toggle
+  content.querySelector('[data-action="toggle-cursor-blink"]')?.addEventListener("change", async (e) => {
+    const blink = (e.target as HTMLInputElement).checked;
+    await storage.saveConfig({ cursorBlink: blink });
+    window.dispatchEvent(new CustomEvent("terx-cursor-blink-change", { detail: blink }));
   });
 
   // Terminal font size change (with live preview)

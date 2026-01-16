@@ -80,6 +80,8 @@
       "ui": "Interface",
       "terminalFont": "Font",
       "terminalFontSize": "Font Size",
+      "cursorStyle": "Cursor Style",
+      "cursorBlink": "Cursor Blink",
       "uiFontSize": "Font Size",
       "systemMono": "System Monospace",
       "fontSize": "Font Size",
@@ -191,6 +193,23 @@
     "pressToConnect": "Press Ctrl+H to open hosts sidebar",
     "sessionEnded": "Session ended",
     "connectionLost": "Connection lost"
+  },
+  "hostkey": {
+    "unknownHost": "Unknown Host",
+    "unknownMessage": "The authenticity of host cannot be established.",
+    "keyType": "Key Type:",
+    "showVisualFingerprint": "Show Visual Fingerprint",
+    "trustQuestion": "Do you want to trust this host?",
+    "reject": "Reject",
+    "trustOnce": "Trust Once",
+    "trustAlways": "Trust Always",
+    "warningHostKeyChanged": "Host Key Changed!",
+    "warningMitm": "POSSIBLE MAN-IN-THE-MIDDLE ATTACK!",
+    "warningMitmSubtitle": "Someone could be intercepting your connection.",
+    "previousKey": "Previous:",
+    "currentKey": "Current:",
+    "contactAdmin": "Contact the server administrator to verify the key change.",
+    "replaceKey": "Replace Key"
   },
   "common": {
     "save": "Save",

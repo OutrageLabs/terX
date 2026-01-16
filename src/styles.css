@@ -3122,3 +3122,203 @@ emoji-picker {
 .fm-error {
   color: var(--color-red);
 }
+
+/* ============================================================================
+   HOST KEY VERIFICATION DIALOG
+   ============================================================================ */
+
+.hostkey-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.hostkey-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.hostkey-message {
+  text-align: center;
+}
+
+.hostkey-host-id {
+  font-family: var(--font-family-mono);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-blue);
+  margin-top: 0.5rem;
+}
+
+.hostkey-details {
+  background: var(--color-surface-0);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.hostkey-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.375rem 0;
+}
+
+.hostkey-detail-row:not(:last-child) {
+  border-bottom: 1px solid var(--color-surface-1);
+}
+
+.hostkey-label {
+  font-size: 0.75rem;
+  color: var(--color-subtext-0);
+  flex-shrink: 0;
+}
+
+.hostkey-value {
+  font-size: 0.75rem;
+  color: var(--color-text);
+  text-align: right;
+  word-break: break-all;
+}
+
+.hostkey-fingerprint {
+  font-size: 0.6875rem;
+  letter-spacing: -0.02em;
+}
+
+.hostkey-randomart-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hostkey-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  background: none;
+  border: none;
+  color: var(--color-blue);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.hostkey-toggle-btn:hover {
+  color: var(--color-lavender);
+}
+
+.hostkey-toggle-btn .chevron {
+  transition: transform 0.15s ease;
+}
+
+.hostkey-toggle-btn .chevron.rotate-90 {
+  transform: rotate(90deg);
+}
+
+.hostkey-randomart {
+  background: var(--color-crust);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  overflow: hidden;
+}
+
+.hostkey-randomart pre {
+  font-family: var(--font-family-mono);
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  color: var(--color-text);
+  margin: 0;
+  white-space: pre;
+}
+
+.hostkey-question {
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--color-text);
+  margin-top: 0.5rem;
+}
+
+.hostkey-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Warning variant for changed key */
+.hostkey-dialog-warning .dialog-title {
+  color: var(--color-red);
+}
+
+.hostkey-warning-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(243, 139, 168, 0.1);
+  border: 1px solid var(--color-red);
+  border-radius: 0.5rem;
+}
+
+.hostkey-warning-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-red);
+  margin: 0;
+}
+
+.hostkey-warning-subtitle {
+  font-size: 0.8125rem;
+  color: var(--color-subtext-0);
+  margin: 0.25rem 0 0 0;
+}
+
+.hostkey-comparison {
+  background: var(--color-surface-0);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.hostkey-comparison-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.hostkey-comparison-label {
+  font-size: 0.6875rem;
+  color: var(--color-subtext-0);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.hostkey-comparison-value {
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
+.hostkey-comparison-arrow {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0;
+}
+
+.hostkey-contact-admin {
+  font-size: 0.8125rem;
+  color: var(--color-subtext-0);
+  text-align: center;
+  font-style: italic;
+}
+
+/* Danger button style */
+.btn-danger {
+  background: var(--color-red) !important;
+  color: var(--color-crust) !important;
+}
+
+.btn-danger:hover {
+  background: var(--color-red) !important;
+  filter: brightness(1.1);
+}

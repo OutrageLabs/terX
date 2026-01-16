@@ -6,9 +6,11 @@ use russh::keys::{PrivateKeyWithHashAlg, PublicKey};
 use russh::{Channel, ChannelMsg};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::mpsc;
+use tauri::{AppHandle, Emitter};
+use tokio::sync::{mpsc, oneshot, Mutex};
 
 use crate::credentials::{CredentialsManager, Host};
+use crate::hostkeys::{HostKeyInfo, KnownHostsStore, UserDecision, VerificationMode, VerificationResult};
 use russh_sftp::client::SftpSession;
 
 /// Ghostty terminfo data (from `infocmp -x xterm-ghostty`)
@@ -95,21 +97,196 @@ const GHOSTTY_TERMINFO: &str = r#"xterm-ghostty|ghostty|Ghostty,
 	xr=\EP>\\|[ -~]+a\E\\,
 "#;
 
+/// Context for host key verification request
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct HostKeyVerifyEvent {
+    /// Unique verification ID
+    pub verification_id: String,
+    /// Host key information for display
+    pub key_info: HostKeyInfo,
+}
+
 /// Handler for SSH client (public for SFTP reuse)
 /// In russh 0.56+, data is received via Channel::wait(), not Handler callbacks
-pub struct SshHandler;
+pub struct SshHandler {
+    /// Unique ID for this verification request
+    verification_id: String,
+    /// Host being connected to
+    host: String,
+    /// Port
+    port: u16,
+    /// Tauri app handle for emitting events
+    app_handle: Option<AppHandle>,
+    /// Known hosts store (shared)
+    known_hosts: Arc<Mutex<KnownHostsStore>>,
+    /// Sender to register pending verification in AppState
+    pending_tx: Option<mpsc::Sender<(String, oneshot::Sender<UserDecision>)>>,
+}
+
+impl SshHandler {
+    /// Create a new handler for host key verification
+    pub fn new(
+        verification_id: String,
+        host: String,
+        port: u16,
+        app_handle: Option<AppHandle>,
+        known_hosts: Arc<Mutex<KnownHostsStore>>,
+        pending_tx: Option<mpsc::Sender<(String, oneshot::Sender<UserDecision>)>>,
+    ) -> Self {
+        Self {
+            verification_id,
+            host,
+            port,
+            app_handle,
+            known_hosts,
+            pending_tx,
+        }
+    }
+
+    /// Create a simple handler that accepts all keys (for SFTP reuse)
+    pub fn new_accept_all() -> Self {
+        Self {
+            verification_id: String::new(),
+            host: String::new(),
+            port: 22,
+            app_handle: None,
+            known_hosts: Arc::new(Mutex::new(KnownHostsStore::new())),
+            pending_tx: None,
+        }
+    }
+}
 
 impl Handler for SshHandler {
     type Error = russh::Error;
 
     async fn check_server_key(
         &mut self,
-        _server_public_key: &PublicKey,
+        server_public_key: &PublicKey,
     ) -> Result<bool, Self::Error> {
-        // TODO: Implement server key verification
-        // For now, accept all keys (like ssh -o StrictHostKeyChecking=no)
-        log::warn!("SSH: Accepting server key without verification");
-        Ok(true)
+        // If no app handle, we're in "accept all" mode (e.g., SFTP reuse)
+        let Some(ref app_handle) = self.app_handle else {
+            log::warn!("SSH: Accepting server key without verification (no app handle)");
+            return Ok(true);
+        };
+
+        let known_hosts = self.known_hosts.lock().await;
+        let mode = known_hosts.verification_mode();
+        let verification = known_hosts.verify_host_key(&self.host, self.port, server_public_key);
+
+        // Handle based on verification mode and result
+        match (&verification, mode) {
+            // Known key - always accept and update timestamp
+            (VerificationResult::Known, _) => {
+                log::info!("SSH: Host key verified for {}:{}", self.host, self.port);
+                drop(known_hosts);
+                let mut known_hosts = self.known_hosts.lock().await;
+                known_hosts.update_last_seen(&self.host, self.port);
+                return Ok(true);
+            }
+
+            // AcceptAll mode - accept everything
+            (_, VerificationMode::AcceptAll) => {
+                log::warn!("SSH: Auto-accepting key for {}:{} (AcceptAll mode)", self.host, self.port);
+                drop(known_hosts);
+                let mut known_hosts = self.known_hosts.lock().await;
+                let _ = known_hosts.store_host_key(&self.host, self.port, server_public_key, true);
+                return Ok(true);
+            }
+
+            // Strict mode - reject unknown/changed
+            (VerificationResult::Unknown, VerificationMode::Strict) => {
+                log::warn!("SSH: Rejecting unknown host {}:{} (Strict mode)", self.host, self.port);
+                return Err(russh::Error::UnknownKey);
+            }
+            (VerificationResult::Changed { .. }, VerificationMode::Strict) => {
+                log::error!("SSH: Rejecting changed host key for {}:{} (Strict mode)", self.host, self.port);
+                return Err(russh::Error::KeyChanged { line: 0 });
+            }
+
+            // AcceptNew mode - auto-accept unknown, ask for changed
+            (VerificationResult::Unknown, VerificationMode::AcceptNew) => {
+                log::info!("SSH: Auto-accepting new host {}:{} (AcceptNew mode)", self.host, self.port);
+                drop(known_hosts);
+                let mut known_hosts = self.known_hosts.lock().await;
+                let _ = known_hosts.store_host_key(&self.host, self.port, server_public_key, true);
+                return Ok(true);
+            }
+
+            // Ask mode or changed key in AcceptNew - need user decision
+            _ => {}
+        }
+
+        // Get key info for UI
+        let key_info = known_hosts.get_host_key_info(&self.host, self.port, server_public_key);
+        drop(known_hosts);
+
+        log::info!(
+            "SSH: Requesting user verification for {}:{} ({})",
+            self.host,
+            self.port,
+            if key_info.is_changed { "CHANGED" } else { "unknown" }
+        );
+
+        // Create oneshot channel for response
+        let (tx, rx) = oneshot::channel();
+
+        // Register pending verification
+        if let Some(ref pending_tx) = self.pending_tx {
+            if pending_tx.send((self.verification_id.clone(), tx)).await.is_err() {
+                log::error!("SSH: Failed to register pending verification");
+                return Err(russh::Error::Disconnect);
+            }
+        } else {
+            log::error!("SSH: No pending_tx channel available");
+            return Err(russh::Error::Disconnect);
+        }
+
+        // Emit event to frontend
+        let event = HostKeyVerifyEvent {
+            verification_id: self.verification_id.clone(),
+            key_info: key_info.clone(),
+        };
+
+        if let Err(e) = app_handle.emit("host-key-verify", &event) {
+            log::error!("SSH: Failed to emit host-key-verify event: {}", e);
+            return Err(russh::Error::Disconnect);
+        }
+
+        // Wait for user decision with timeout (120 seconds)
+        let decision = match tokio::time::timeout(Duration::from_secs(120), rx).await {
+            Ok(Ok(decision)) => decision,
+            Ok(Err(_)) => {
+                log::warn!("SSH: Verification cancelled (channel closed)");
+                return Err(russh::Error::Disconnect);
+            }
+            Err(_) => {
+                log::warn!("SSH: Verification timed out after 120 seconds");
+                return Err(russh::Error::Disconnect);
+            }
+        };
+
+        // Handle user decision
+        match decision {
+            UserDecision::TrustPermanently => {
+                log::info!("SSH: User trusted host permanently: {}:{}", self.host, self.port);
+                let mut known_hosts = self.known_hosts.lock().await;
+                if let Err(e) = known_hosts.store_host_key(&self.host, self.port, server_public_key, true) {
+                    log::error!("SSH: Failed to store host key: {}", e);
+                }
+                Ok(true)
+            }
+            UserDecision::TrustOnce => {
+                log::info!("SSH: User trusted host for this session: {}:{}", self.host, self.port);
+                let mut known_hosts = self.known_hosts.lock().await;
+                // Store but don't save to disk
+                let _ = known_hosts.store_host_key(&self.host, self.port, server_public_key, false);
+                Ok(true)
+            }
+            UserDecision::Reject => {
+                log::info!("SSH: User rejected host: {}:{}", self.host, self.port);
+                Err(russh::Error::Disconnect)
+            }
+        }
     }
 }
 
@@ -271,10 +448,22 @@ async fn ensure_terminfo(session: &client::Handle<SshHandler>) -> String {
     }
 }
 
+/// Parameters for host key verification
+pub struct HostKeyVerificationParams {
+    /// Unique verification ID
+    pub verification_id: String,
+    /// Tauri app handle for emitting events
+    pub app_handle: AppHandle,
+    /// Known hosts store (shared)
+    pub known_hosts: Arc<Mutex<KnownHostsStore>>,
+    /// Channel to register pending verifications
+    pub pending_tx: mpsc::Sender<(String, oneshot::Sender<UserDecision>)>,
+}
+
 impl SshSession {
-    /// Create new SSH session
+    /// Create new SSH session with host key verification
     /// Returns (session, channels, close_signal)
-    pub async fn connect(
+    pub async fn connect_with_verification(
         host: &str,
         port: u16,
         username: &str,
@@ -282,11 +471,19 @@ impl SshSession {
         terminal_type: &str,
         cols: u32,
         rows: u32,
+        verification: HostKeyVerificationParams,
     ) -> Result<(Self, SshSessionChannels, SshCloseSignal), SshError> {
         let config = Config::default();
         let config = Arc::new(config);
 
-        let handler = SshHandler;
+        let handler = SshHandler::new(
+            verification.verification_id,
+            host.to_string(),
+            port,
+            Some(verification.app_handle),
+            verification.known_hosts,
+            Some(verification.pending_tx),
+        );
 
         // Connection
         let addr = format!("{}:{}", host, port);
@@ -416,6 +613,155 @@ impl SshSession {
                 0,   // pix_width
                 0,   // pix_height
                 &[], // terminal modes
+            )
+            .await
+            .map_err(|e| SshError::Channel(e.to_string()))?;
+
+        // Request shell
+        log::info!("SSH: Requesting shell");
+        channel
+            .request_shell(false)
+            .await
+            .map_err(|e| SshError::Channel(e.to_string()))?;
+
+        // Create channels for communication
+        let (output_tx, output_rx) = mpsc::channel(8192);
+        let (input_tx, input_rx) = mpsc::channel(1024);
+        let (resize_tx, resize_rx) = mpsc::channel(16);
+        let (close_tx, close_rx) = mpsc::channel(1);
+
+        // Spawn task to poll channel and forward data
+        tokio::spawn(Self::channel_loop(channel, output_tx, input_rx, resize_rx, close_tx));
+
+        Ok((
+            Self {
+                session: Arc::new(session),
+                output_rx,
+            },
+            SshSessionChannels {
+                input_tx,
+                resize_tx,
+            },
+            SshCloseSignal { close_rx },
+        ))
+    }
+
+    /// Create new SSH session without host key verification (legacy/testing)
+    /// WARNING: This accepts all host keys without verification - use only for testing
+    #[allow(dead_code)]
+    pub async fn connect(
+        host: &str,
+        port: u16,
+        username: &str,
+        auth: AuthMethod,
+        terminal_type: &str,
+        cols: u32,
+        rows: u32,
+    ) -> Result<(Self, SshSessionChannels, SshCloseSignal), SshError> {
+        let config = Config::default();
+        let config = Arc::new(config);
+
+        // Use accept-all handler (legacy behavior)
+        let handler = SshHandler::new_accept_all();
+
+        // Connection
+        let addr = format!("{}:{}", host, port);
+        log::info!("SSH: Connecting to {} (no host key verification)", addr);
+        log::warn!("SSH: Using legacy connect() without host key verification - consider using connect_with_verification()");
+
+        let mut session = client::connect(config, &addr, handler)
+            .await
+            .map_err(|e| SshError::Connection(e.to_string()))?;
+
+        // Authentication
+        let authenticated = match auth {
+            AuthMethod::Password(password) => {
+                log::info!("SSH: Authenticating with password");
+                session
+                    .authenticate_password(username, &password)
+                    .await
+                    .map_err(|e| SshError::Auth(e.to_string()))?
+                    .success()
+            }
+            AuthMethod::Key { key_data, passphrase } => {
+                log::info!("SSH: Authenticating with key");
+                let key_pair = if let Some(ref pass) = passphrase {
+                    russh::keys::decode_secret_key(&key_data, Some(pass))
+                        .map_err(|e| SshError::Key(e.to_string()))?
+                } else {
+                    russh::keys::decode_secret_key(&key_data, None)
+                        .map_err(|e| SshError::Key(e.to_string()))?
+                };
+
+                let rsa_hash = session.best_supported_rsa_hash().await
+                    .ok()
+                    .flatten()
+                    .flatten();
+
+                session
+                    .authenticate_publickey(username, PrivateKeyWithHashAlg::new(Arc::new(key_pair), rsa_hash))
+                    .await
+                    .map_err(|e| SshError::Auth(e.to_string()))?
+                    .success()
+            }
+            AuthMethod::KeyFile { path, passphrase } => {
+                log::info!("SSH: Authenticating with key file");
+                let key_data = std::fs::read_to_string(&path)
+                    .map_err(|e| SshError::Key(format!("Cannot read key file: {}", e)))?;
+                let key_pair = if let Some(pass) = passphrase {
+                    russh::keys::decode_secret_key(&key_data, Some(&pass))
+                        .map_err(|e| SshError::Key(e.to_string()))?
+                } else {
+                    russh::keys::decode_secret_key(&key_data, None)
+                        .map_err(|e| SshError::Key(e.to_string()))?
+                };
+
+                let rsa_hash = session.best_supported_rsa_hash().await
+                    .ok()
+                    .flatten()
+                    .flatten();
+
+                session
+                    .authenticate_publickey(username, PrivateKeyWithHashAlg::new(Arc::new(key_pair), rsa_hash))
+                    .await
+                    .map_err(|e| SshError::Auth(e.to_string()))?
+                    .success()
+            }
+            AuthMethod::Agent => {
+                return Err(SshError::Auth("SSH agent not implemented yet".to_string()));
+            }
+        };
+
+        if !authenticated {
+            return Err(SshError::Auth("Authentication failed".to_string()));
+        }
+
+        log::info!("SSH: Authenticated successfully");
+
+        // Ensure terminfo
+        let actual_terminal_type = if terminal_type == "xterm-ghostty" {
+            ensure_terminfo(&session).await
+        } else {
+            terminal_type.to_string()
+        };
+
+        // Open channel
+        let channel = session
+            .channel_open_session()
+            .await
+            .map_err(|e| SshError::Channel(e.to_string()))?;
+
+        // Request PTY
+        log::info!("SSH: Requesting PTY with terminal type: {}, size: {}x{}", actual_terminal_type, cols, rows);
+        channel
+            .request_pty(
+                false,
+                &actual_terminal_type,
+                cols,
+                rows,
+                0,
+                0,
+                &[],
             )
             .await
             .map_err(|e| SshError::Channel(e.to_string()))?;

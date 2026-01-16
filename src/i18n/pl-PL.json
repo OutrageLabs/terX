@@ -80,6 +80,8 @@
       "ui": "Interfejs",
       "terminalFont": "Czcionka",
       "terminalFontSize": "Rozmiar czcionki",
+      "cursorStyle": "Styl kursora",
+      "cursorBlink": "Miganie kursora",
       "uiFontSize": "Rozmiar czcionki",
       "systemMono": "Systemowa monospace",
       "fontSize": "Rozmiar czcionki",
@@ -191,6 +193,23 @@
     "pressToConnect": "Nacisnij Ctrl+H aby otworzyc liste hostow",
     "sessionEnded": "Sesja zakonczona",
     "connectionLost": "Polaczenie utracone"
+  },
+  "hostkey": {
+    "unknownHost": "Nieznany host",
+    "unknownMessage": "Nie mozna potwierdzic autentycznosci hosta.",
+    "keyType": "Typ klucza:",
+    "showVisualFingerprint": "Pokaz wizualny odcisk",
+    "trustQuestion": "Czy chcesz zaufac temu hostowi?",
+    "reject": "Odrzuc",
+    "trustOnce": "Zaufaj raz",
+    "trustAlways": "Zaufaj zawsze",
+    "warningHostKeyChanged": "Klucz hosta zmieniony!",
+    "warningMitm": "MOZLIWY ATAK MAN-IN-THE-MIDDLE!",
+    "warningMitmSubtitle": "Ktos moze przechwytywac Twoje polaczenie.",
+    "previousKey": "Poprzedni:",
+    "currentKey": "Obecny:",
+    "contactAdmin": "Skontaktuj sie z administratorem serwera aby zweryfikowac zmiane klucza.",
+    "replaceKey": "Zastap klucz"
   },
   "common": {
     "save": "Zapisz",
