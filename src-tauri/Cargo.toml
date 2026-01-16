@@ -1,6 +1,6 @@
 [package]
 name = "terx"
-version = "0.1.6"
+version = "0.1.7"
 description = "Cross-platform SSH client with GPU-accelerated rendering"
 authors = ["OutrageLabs"]
 license = "MIT"

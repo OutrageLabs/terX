@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-brightgreen)](https://github.com/OutrageLabs/terX/releases)
-[![Version](https://img.shields.io/badge/Version-0.1.6-orange)](https://github.com/OutrageLabs/terX/releases/tag/v0.1.6)
+[![Version](https://img.shields.io/badge/Version-0.1.7-orange)](https://github.com/OutrageLabs/terX/releases/tag/v0.1.7)
 
 **Secure SSH connections with GPU-accelerated terminal rendering**
 
@@ -21,6 +21,7 @@
 ## Features
 
 - **SSH Connection Manager** — Save, organize, and quickly connect to your servers
+- **Host Key Verification** — OpenSSH-style known_hosts with MITM protection
 - **SFTP File Manager** — Dual-pane Norton Commander-style file browser (Ctrl+F5)
 - **GPU-Accelerated Rendering** — WebGL2-powered terminal with sub-millisecond render times
 - **End-to-End Encryption** — All credentials encrypted with AES-256-GCM + PBKDF2
@@ -185,6 +186,7 @@ Toggle between modes using the **selection icon** in the bottom-right corner of 
 
 ## Security
 
+- **Host Key Verification** — Protects against MITM attacks with SHA256/MD5 fingerprints and visual randomart
 - **Master Password** — All sensitive data encrypted locally
 - **No Plain Text** — Credentials never stored unencrypted
 - **System Keychain** — Optional integration with OS keychain
