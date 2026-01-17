@@ -27,7 +27,6 @@ let hostsCache: HostWithRelations[] = [];
 let tagsCache: Tag[] = [];
 let searchQuery = "";
 let expandedTags = new Set<string>();
-let connectedHostId: string | null = null;
 let sidebarOptions: SidebarOptions = {};
 
 // Icons
@@ -196,12 +195,11 @@ export async function refreshSidebar(): Promise<void> {
 
 /**
  * Set the currently connected host
+ * @deprecated Multiple connections per host are now supported - this function is a no-op
  */
-export function setConnectedHost(hostId: string | null): void {
-  connectedHostId = hostId;
-  if (sidebarOverlay) {
-    renderHostList();
-  }
+export function setConnectedHost(_hostId: string | null): void {
+  // No-op: multiple connections per host are now supported
+  // Keeping this function for backwards compatibility
 }
 
 /**
@@ -378,13 +376,12 @@ function renderHostList(): void {
 
 /**
  * Render a single host item - click opens SSH, folder icon opens file manager
+ * Multiple connections per host are supported - no "connected" indicator
  */
 function renderHostItem(host: HostWithRelations): string {
-  const isConnected = host.id === connectedHostId;
-
   return `
-    <div class="sidebar-item ${isConnected ? 'sidebar-item-active' : ''}" data-action="ssh" data-host-id="${host.id}">
-      <span class="sidebar-item-dot ${isConnected ? 'sidebar-item-dot-connected' : ''}"></span>
+    <div class="sidebar-item" data-action="ssh" data-host-id="${host.id}">
+      <span class="sidebar-item-dot"></span>
       <span class="flex-1 truncate">${host.name}</span>
       <div class="sidebar-item-actions">
         <button class="sidebar-action-btn" data-action="transfer" data-host-id="${host.id}" title="File Transfer">

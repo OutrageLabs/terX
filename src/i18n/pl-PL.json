@@ -299,6 +299,7 @@
       "nextTab": "Nastepna karta",
       "prevTab": "Poprzednia karta",
       "closeTab": "Zamknij karte",
+      "newTabSameHost": "Nowa karta do tego samego hosta",
       "openFileManager": "Otworz menedzer plikow",
       "switchPanels": "Przelacz panele",
       "openDownload": "Otworz / Pobierz",

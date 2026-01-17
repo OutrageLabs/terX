@@ -211,12 +211,26 @@ export function renderTabBar(): void {
 }
 
 /**
+ * Get tab name with numbering for multiple connections to same host
+ */
+function getTabName(session: TerminalSession): string {
+  const allForHost = sessionManager.getSessionsForHost(session.hostId);
+  if (allForHost.length <= 1) {
+    return session.hostName;
+  }
+  // Znajdź indeks tej sesji wśród wszystkich sesji do tego hosta
+  const idx = allForHost.findIndex(s => s.id === session.id) + 1;
+  return `${session.hostName} (${idx})`;
+}
+
+/**
  * Render a single terminal tab
  */
 function renderTab(session: TerminalSession, isActive: boolean): string {
   const statusClass = getStatusClass(session.status);
   const statusTitle = getStatusTitle(session.status);
   const activeClass = isActive ? 'terminal-tab-active' : '';
+  const tabName = getTabName(session);
 
   return `
     <div
@@ -227,7 +241,7 @@ function renderTab(session: TerminalSession, isActive: boolean): string {
       title="${session.hostInfo.login}@${session.hostInfo.ip}"
     >
       <span class="terminal-tab-status ${statusClass}" title="${statusTitle}"></span>
-      <span class="terminal-tab-name">${escapeHtml(session.hostName)}</span>
+      <span class="terminal-tab-name">${escapeHtml(tabName)}</span>
       <button
         class="terminal-tab-close"
         data-action="close-tab"
