@@ -3322,3 +3322,96 @@ emoji-picker {
   background: var(--color-red) !important;
   filter: brightness(1.1);
 }
+
+/* ============================================================================
+   TOGGLE SWITCH (macOS Style)
+   ============================================================================ */
+
+.toggle-switch {
+  position: relative;
+  display: inline-flex;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--color-surface-1);
+  border-radius: 24px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  left: 2px;
+  top: 2px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Checked state */
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--color-green);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+/* Hover state */
+.toggle-switch:hover .toggle-slider {
+  background: var(--color-surface-2);
+}
+
+.toggle-switch:hover input:checked + .toggle-slider {
+  background: var(--color-green);
+  filter: brightness(1.1);
+}
+
+/* Focus state */
+.toggle-switch input:focus-visible + .toggle-slider {
+  box-shadow: 0 0 0 3px rgba(137, 180, 250, 0.3);
+}
+
+/* Disabled state */
+.toggle-switch input:disabled + .toggle-slider {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Settings panel specific sizing (slightly smaller) */
+.settings-panel .toggle-switch {
+  width: 40px;
+  height: 22px;
+}
+
+.settings-panel .toggle-slider::before {
+  width: 18px;
+  height: 18px;
+}
+
+.settings-panel .toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(18px);
+}
+
+/* Text hint styling */
+.text-hint {
+  font-size: 0.6875rem;
+  color: var(--color-overlay-0);
+  margin-top: 0.125rem;
+}
