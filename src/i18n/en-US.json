@@ -299,6 +299,7 @@
       "nextTab": "Next tab",
       "prevTab": "Previous tab",
       "closeTab": "Close tab",
+      "newTabSameHost": "New tab to same host",
       "openFileManager": "Open File Manager",
       "switchPanels": "Switch panels",
       "openDownload": "Open / Download",

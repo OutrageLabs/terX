@@ -98,6 +98,14 @@ class SessionManager {
   }
 
   /**
+   * Get all sessions for a specific host (for multi-connection support)
+   */
+  getSessionsForHost(hostId: string): TerminalSession[] {
+    return Array.from(this.sessions.values())
+      .filter(session => session.hostId === hostId);
+  }
+
+  /**
    * Get session count
    */
   get sessionCount(): number {

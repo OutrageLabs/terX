@@ -498,15 +498,7 @@ async function main(): Promise<void> {
       return;
     }
 
-    // Check if already connected to this host
-    const existingSession = sessionManager.getSessionByHostId(host.id);
-    if (existingSession) {
-      console.log('[terX] Already connected to this host, switching tab');
-      sessionManager.switchSession(existingSession.id);
-      hideSidebar();
-      updateStatus(`Connected to ${host.name}`, true);
-      return;
-    }
+    // Usunięte sprawdzenie istniejących połączeń - zawsze tworzymy nowe połączenie
 
     isConnecting = true;
     hideSidebar();
@@ -1002,6 +994,24 @@ async function main(): Promise<void> {
 
         // Save to config so settings panel stays in sync
         storage.saveConfig({ terminalFontSize: newSize });
+      }
+    }
+  }, true);
+
+  // ============================================================================
+  // Ctrl/Cmd+T - New tab to same host (capture phase to override browser)
+  // ============================================================================
+  window.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+      e.preventDefault();
+      e.stopPropagation();
+      const activeSession = sessionManager.getActiveSession();
+      if (activeSession) {
+        // Otwórz nowe połączenie do tego samego hosta
+        connectToHost(activeSession.hostInfo);
+      } else {
+        // Brak aktywnej sesji - pokaż sidebar z hostami
+        showSidebar();
       }
     }
   }, true);

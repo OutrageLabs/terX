@@ -31,6 +31,7 @@ const SHORTCUTS = {
     { keys: 'Ctrl+Tab', descKey: 'nextTab' },
     { keys: 'Ctrl+Shift+Tab', descKey: 'prevTab' },
     { keys: 'Ctrl+W', descKey: 'closeTab' },
+    { keys: 'Ctrl/Cmd+T', descKey: 'newTabSameHost' },
   ],
   fileManager: [
     { keys: 'F5', descKey: 'openFileManager' },
@@ -53,7 +54,7 @@ const FEATURES = [
 ];
 
 const ABOUT = {
-  version: '0.1.6',
+  version: '0.2.0',
   stack: [
     { name: 'Framework', value: 'Tauri 2.0' },
     { name: 'VT Parser', value: 'Ghostty WASM' },
