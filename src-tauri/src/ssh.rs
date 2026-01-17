@@ -473,7 +473,13 @@ impl SshSession {
         rows: u32,
         verification: HostKeyVerificationParams,
     ) -> Result<(Self, SshSessionChannels, SshCloseSignal), SshError> {
-        let config = Config::default();
+        let config = Config {
+            // Send keepalive every 30 seconds if no data received
+            keepalive_interval: Some(Duration::from_secs(30)),
+            // Disconnect after 3 unanswered keepalives (90 seconds total)
+            keepalive_max: 3,
+            ..Config::default()
+        };
         let config = Arc::new(config);
 
         let handler = SshHandler::new(
@@ -658,7 +664,13 @@ impl SshSession {
         cols: u32,
         rows: u32,
     ) -> Result<(Self, SshSessionChannels, SshCloseSignal), SshError> {
-        let config = Config::default();
+        let config = Config {
+            // Send keepalive every 30 seconds if no data received
+            keepalive_interval: Some(Duration::from_secs(30)),
+            // Disconnect after 3 unanswered keepalives (90 seconds total)
+            keepalive_max: 3,
+            ..Config::default()
+        };
         let config = Arc::new(config);
 
         // Use accept-all handler (legacy behavior)
