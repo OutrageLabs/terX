@@ -54,7 +54,7 @@ const FEATURES = [
 ];
 
 const ABOUT = {
-  version: '0.2.0',
+  version: '0.2.1',
   stack: [
     { name: 'Framework', value: 'Tauri 2.0' },
     { name: 'VT Parser', value: 'Ghostty WASM' },
