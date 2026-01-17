@@ -351,6 +351,13 @@ async function main(): Promise<void> {
     // Apply current selection mode setting
     terminal.setSelectionRequireShift(selectionRequireShift);
 
+    // Apply clipboard shortcuts setting
+    const config = storage.getConfig();
+    terminal.setClipboardShortcuts(
+      config.enableCtrlShiftCV !== false,
+      config.enableInsertShortcuts === true
+    );
+
     // Setup SSH data listener
     const unlistenData = await listen<number[]>(`ssh-data-${sshSessionId}`, (event) => {
       const bytes = new Uint8Array(event.payload);
@@ -898,6 +905,19 @@ async function main(): Promise<void> {
 
     console.log(`[terX] Cursor blink changed to: ${blink}`);
   }) as EventListener);
+
+  // Clipboard shortcuts change - apply to ALL terminals
+  window.addEventListener('terx-clipboard-shortcuts-change', () => {
+    const config = storage.getConfig();
+    const enableCtrlShiftCV = config.enableCtrlShiftCV !== false;
+    const enableInsertShortcuts = config.enableInsertShortcuts === true;
+
+    for (const session of sessionManager.getAllSessions()) {
+      session.terminal.setClipboardShortcuts(enableCtrlShiftCV, enableInsertShortcuts);
+    }
+
+    console.log(`[terX] Clipboard shortcuts changed: Ctrl+Shift+C/V=${enableCtrlShiftCV}, Insert=${enableInsertShortcuts}`);
+  });
 
   // ============================================================================
   // Theme Switcher in Statusbar

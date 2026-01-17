@@ -4,6 +4,7 @@
  */
 
 import { t } from "../i18n";
+import * as storage from "../lib/storage";
 
 let helpPopup: HTMLDivElement | null = null;
 let backdrop: HTMLDivElement | null = null;
@@ -62,6 +63,26 @@ const ABOUT = {
   ],
 };
 
+function getTerminalShortcuts(): typeof SHORTCUTS.terminal {
+  const config = storage.getConfig();
+  const enableCtrlShiftCV = config.enableCtrlShiftCV !== false;
+  const enableInsertShortcuts = config.enableInsertShortcuts === true;
+
+  const shortcuts = [...SHORTCUTS.terminal];
+
+  // Add clipboard shortcuts based on config
+  if (enableCtrlShiftCV) {
+    shortcuts.push({ keys: 'Ctrl+Shift+C', descKey: 'copyModern' });
+    shortcuts.push({ keys: 'Ctrl+Shift+V', descKey: 'pasteModern' });
+  }
+  if (enableInsertShortcuts) {
+    shortcuts.push({ keys: 'Ctrl+Insert', descKey: 'copyClassic' });
+    shortcuts.push({ keys: 'Shift+Insert', descKey: 'pasteClassic' });
+  }
+
+  return shortcuts;
+}
+
 function renderShortcutsTab(): string {
   const renderSection = (titleKey: string, shortcuts: typeof SHORTCUTS.general) => `
     <div class="help-section">
@@ -80,7 +101,7 @@ function renderShortcutsTab(): string {
   return `
     <div class="help-tab-content">
       ${renderSection('general', SHORTCUTS.general)}
-      ${renderSection('terminal', SHORTCUTS.terminal)}
+      ${renderSection('terminal', getTerminalShortcuts())}
       ${renderSection('tabs', SHORTCUTS.tabs)}
       ${renderSection('fileManager', SHORTCUTS.fileManager)}
     </div>

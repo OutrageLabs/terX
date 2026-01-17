@@ -727,6 +727,35 @@ function renderPreferencesTab(): string {
         <span class="text-xs text-text w-8 text-right" data-ui-font-size-display>${uiFontSize}px</span>
       </div>
     </div>
+
+    <div class="divider"></div>
+
+    <!-- Clipboard Shortcuts Section -->
+    <span class="settings-section-title">${t("settings.preferences.clipboard")}</span>
+    <div class="settings-row" style="margin-top: 0.5rem;">
+      <div class="form-group">
+        <label class="text-label">${t("settings.preferences.ctrlShiftCV")}</label>
+        <span class="text-hint">Ctrl+Shift+C / Ctrl+Shift+V</span>
+      </div>
+      <div class="flex items-center h-9">
+        <label class="toggle-switch">
+          <input type="checkbox" data-action="toggle-ctrl-shift-cv" ${config.enableCtrlShiftCV !== false ? "checked" : ""}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+    <div class="settings-row" style="margin-top: 0.5rem;">
+      <div class="form-group">
+        <label class="text-label">${t("settings.preferences.insertShortcuts")}</label>
+        <span class="text-hint">Ctrl+Insert / Shift+Insert</span>
+      </div>
+      <div class="flex items-center h-9">
+        <label class="toggle-switch">
+          <input type="checkbox" data-action="toggle-insert-shortcuts" ${config.enableInsertShortcuts ? "checked" : ""}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
   `;
 }
 
@@ -854,6 +883,19 @@ function setupPreferencesEventListeners(): void {
 
   content.querySelector('[data-action="ui-font-increase"]')?.addEventListener("click", () => {
     adjustUIFontSize(1);
+  });
+
+  // Clipboard shortcuts toggles
+  content.querySelector('[data-action="toggle-ctrl-shift-cv"]')?.addEventListener("change", async (e) => {
+    const enabled = (e.target as HTMLInputElement).checked;
+    await storage.saveConfig({ enableCtrlShiftCV: enabled });
+    window.dispatchEvent(new CustomEvent("terx-clipboard-shortcuts-change"));
+  });
+
+  content.querySelector('[data-action="toggle-insert-shortcuts"]')?.addEventListener("change", async (e) => {
+    const enabled = (e.target as HTMLInputElement).checked;
+    await storage.saveConfig({ enableInsertShortcuts: enabled });
+    window.dispatchEvent(new CustomEvent("terx-clipboard-shortcuts-change"));
   });
 }
 
