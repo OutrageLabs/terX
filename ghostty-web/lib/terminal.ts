@@ -721,6 +721,16 @@ export class Terminal implements ITerminalCore {
   }
 
   /**
+   * Normalize line endings for terminal (CRLF/LF → CR)
+   * Windows clipboard uses CRLF (\r\n), Unix uses LF (\n)
+   * Terminal expects CR (\r) for newlines
+   */
+  private normalizeLineEndings(text: string): string {
+    // Replace CRLF with CR first (Windows), then LF with CR (Unix)
+    return text.replace(/\r\n/g, '\r').replace(/\n/g, '\r');
+  }
+
+  /**
    * Paste text into terminal (triggers bracketed paste if supported)
    */
   paste(data: string): void {
@@ -731,13 +741,16 @@ export class Terminal implements ITerminalCore {
       return;
     }
 
+    // Normalize line endings (CRLF → CR, LF → CR)
+    const normalizedData = this.normalizeLineEndings(data);
+
     // Check if terminal has bracketed paste mode enabled
     if (this.wasmTerm!.hasBracketedPaste()) {
       // Wrap with bracketed paste sequences (DEC mode 2004)
-      this.dataEmitter.fire('\x1b[200~' + data + '\x1b[201~');
+      this.dataEmitter.fire('\x1b[200~' + normalizedData + '\x1b[201~');
     } else {
       // Send data directly
-      this.dataEmitter.fire(data);
+      this.dataEmitter.fire(normalizedData);
     }
   }
 
@@ -981,6 +994,16 @@ export class Terminal implements ITerminalCore {
     customWheelEventHandler?: (event: WheelEvent) => boolean
   ): void {
     this.customWheelEventHandler = customWheelEventHandler;
+  }
+
+  /**
+   * Set clipboard shortcut options
+   * Updates InputHandler with new settings (for runtime changes from Settings)
+   */
+  public setClipboardShortcuts(enableCtrlShiftCV: boolean, enableInsertShortcuts: boolean): void {
+    if (this.inputHandler) {
+      this.inputHandler.setClipboardShortcuts(enableCtrlShiftCV, enableInsertShortcuts);
+    }
   }
 
   // ==========================================================================

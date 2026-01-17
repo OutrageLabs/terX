@@ -87,7 +87,10 @@
       "fontSize": "Font Size",
       "fontSizeSmall": "Small",
       "fontSizeMedium": "Medium",
-      "fontSizeLarge": "Large"
+      "fontSizeLarge": "Large",
+      "clipboard": "Clipboard",
+      "ctrlShiftCV": "Modern shortcuts",
+      "insertShortcuts": "Classic shortcuts"
     },
     "account": {
       "signedInAs": "Signed in as",
@@ -281,6 +284,10 @@
       "debugPanel": "Debug panel",
       "copySelection": "Copy selection",
       "pasteClipboard": "Paste clipboard",
+      "copyModern": "Copy (modern)",
+      "pasteModern": "Paste (modern)",
+      "copyClassic": "Copy (classic)",
+      "pasteClassic": "Paste (classic)",
       "scrollUp": "Scroll up",
       "scrollDown": "Scroll down",
       "zoomIn": "Zoom in",

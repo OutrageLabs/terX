@@ -87,7 +87,10 @@
       "fontSize": "Rozmiar czcionki",
       "fontSizeSmall": "Maly",
       "fontSizeMedium": "Sredni",
-      "fontSizeLarge": "Duzy"
+      "fontSizeLarge": "Duzy",
+      "clipboard": "Schowek",
+      "ctrlShiftCV": "Nowoczesne skroty",
+      "insertShortcuts": "Klasyczne skroty"
     },
     "account": {
       "signedInAs": "Zalogowany jako",
@@ -281,6 +284,10 @@
       "debugPanel": "Panel debugowania",
       "copySelection": "Kopiuj zaznaczenie",
       "pasteClipboard": "Wklej ze schowka",
+      "copyModern": "Kopiuj (nowoczesny)",
+      "pasteModern": "Wklej (nowoczesny)",
+      "copyClassic": "Kopiuj (klasyczny)",
+      "pasteClassic": "Wklej (klasyczny)",
       "scrollUp": "Przewin w gore",
       "scrollDown": "Przewin w dol",
       "zoomIn": "Przybliz",

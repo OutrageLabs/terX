@@ -256,6 +256,8 @@ export class InputHandler {
   private isComposing = false;
   private isDisposed = false;
   private mouseButtonsPressed = 0; // Track which buttons are pressed for motion reporting
+  private enableCtrlShiftCV = true;  // Ctrl+Shift+C/V shortcuts (modern style)
+  private enableInsertShortcuts = false;  // Ctrl+Insert/Shift+Insert shortcuts (classic style)
 
   /**
    * Create a new InputHandler
@@ -299,6 +301,14 @@ export class InputHandler {
    */
   setCustomKeyEventHandler(handler: (event: KeyboardEvent) => boolean): void {
     this.customKeyEventHandler = handler;
+  }
+
+  /**
+   * Set clipboard shortcut options (for runtime updates from settings)
+   */
+  setClipboardShortcuts(enableCtrlShiftCV: boolean, enableInsertShortcuts: boolean): void {
+    this.enableCtrlShiftCV = enableCtrlShiftCV;
+    this.enableInsertShortcuts = enableInsertShortcuts;
   }
 
   /**
@@ -457,6 +467,36 @@ export class InputHandler {
         event.preventDefault();
         return;
       }
+    }
+
+    // Handle Ctrl+Shift+C for copy (modern terminal style)
+    if (this.enableCtrlShiftCV && event.ctrlKey && event.shiftKey && event.code === 'KeyC') {
+      if (this.onCopyCallback && this.onCopyCallback()) {
+        event.preventDefault();
+      }
+      return;
+    }
+
+    // Allow Ctrl+Shift+V to trigger paste event (modern terminal style)
+    if (this.enableCtrlShiftCV && event.ctrlKey && event.shiftKey && event.code === 'KeyV') {
+      // Let the browser's native paste event fire
+      return;
+    }
+
+    // Handle Ctrl+Insert for copy (classic PuTTY/DOS style)
+    if (this.enableInsertShortcuts && event.ctrlKey && !event.shiftKey && event.code === 'Insert') {
+      if (this.onCopyCallback && this.onCopyCallback()) {
+        event.preventDefault();
+      }
+      return;
+    }
+
+    // Handle Shift+Insert for paste (classic PuTTY/DOS style)
+    // Browser doesn't natively handle Shift+Insert, so we need to read clipboard manually
+    if (this.enableInsertShortcuts && event.shiftKey && !event.ctrlKey && event.code === 'Insert') {
+      event.preventDefault();
+      this.pasteFromClipboard();
+      return;
     }
 
     // Allow Ctrl+V and Cmd+V to trigger paste event (don't preventDefault)
@@ -632,8 +672,52 @@ export class InputHandler {
   }
 
   /**
-   * Handle paste event from clipboard
-   * @param event - ClipboardEvent
+   * Normalize line endings for terminal paste
+   * Windows uses CRLF (\r\n), Mac uses CR (\r), Unix uses LF (\n)
+   * Terminal expects just CR (\r) for newlines
+   */
+  private normalizeLineEndings(text: string): string {
+    // Replace CRLF with CR first (Windows), then LF with CR (Unix)
+    return text.replace(/\r\n/g, '\r').replace(/\n/g, '\r');
+  }
+
+  /**
+   * Send text to terminal with proper formatting
+   */
+  private sendPasteText(text: string): void {
+    // Normalize line endings for terminal
+    const normalizedText = this.normalizeLineEndings(text);
+
+    // Check if bracketed paste mode is enabled (DEC mode 2004)
+    const hasBracketedPaste = this.getModeCallback?.(2004) ?? false;
+
+    if (hasBracketedPaste) {
+      // Wrap with bracketed paste sequences
+      this.onDataCallback('\x1b[200~' + normalizedText + '\x1b[201~');
+    } else {
+      // Send raw text
+      this.onDataCallback(normalizedText);
+    }
+  }
+
+  /**
+   * Read from clipboard and paste (for keyboard shortcuts like Shift+Insert)
+   */
+  private async pasteFromClipboard(): Promise<void> {
+    if (this.isDisposed) return;
+
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        this.sendPasteText(text);
+      }
+    } catch (error) {
+      console.warn('Failed to read clipboard:', error);
+    }
+  }
+
+  /**
+   * Handle paste event from clipboard (Ctrl+V, Cmd+V)
    */
   private handlePaste(event: ClipboardEvent): void {
     if (this.isDisposed) return;
@@ -656,16 +740,7 @@ export class InputHandler {
       return;
     }
 
-    // Check if bracketed paste mode is enabled (DEC mode 2004)
-    const hasBracketedPaste = this.getModeCallback?.(2004) ?? false;
-
-    if (hasBracketedPaste) {
-      // Wrap with bracketed paste sequences
-      this.onDataCallback('\x1b[200~' + text + '\x1b[201~');
-    } else {
-      // Send raw text
-      this.onDataCallback(text);
-    }
+    this.sendPasteText(text);
   }
 
   /**
