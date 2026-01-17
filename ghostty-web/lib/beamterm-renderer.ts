@@ -87,6 +87,9 @@ export class BeamtermRendererAdapter implements IRenderer {
   // Mouse state for selection rendering (don't skip frames during mouse drag)
   private isMouseDown: boolean = false;
 
+  // Viewport tracking for scroll dirty detection
+  private lastViewportY: number = 0;
+
   // PERFORMANCE: Reusable CellStyle objects to avoid allocations per frame
   // We cache the last style to reuse when fg/bg/styleBits match
   private cachedStyle: CellStyle | null = null;
@@ -265,6 +268,7 @@ export class BeamtermRendererAdapter implements IRenderer {
     const cursorMoved = cursor.x !== this.lastCursorX || cursor.y !== this.lastCursorY;
     const cursorVisibilityChanged = cursor.visible !== this.lastCursorVisible;
     const cursorBlinkChanged = this.cursorVisible !== this.lastCursorBlinkVisible;
+    const viewportScrolled = viewportY !== this.lastViewportY;
 
     // Check buffer dirty state using ghostty-wasm native tracking
     // Use type assertion since isDirty() is not in IRenderable interface
@@ -274,7 +278,8 @@ export class BeamtermRendererAdapter implements IRenderer {
 
     // Skip render if nothing changed
     // Note: Don't skip during mouse drag (isMouseDown) to ensure smooth selection updates
-    if (!needsFullRedraw && !bufferIsDirty && !cursorMoved && !cursorVisibilityChanged && !cursorBlinkChanged && !this.isMouseDown) {
+    // Note: Don't skip when viewport scrolled (viewportY changed) to update scrollback view
+    if (!needsFullRedraw && !bufferIsDirty && !cursorMoved && !cursorVisibilityChanged && !cursorBlinkChanged && !viewportScrolled && !this.isMouseDown) {
       this.skippedFrames++;
       this.renderStats.skippedFrames++;
       this.renderStats._skippedThisSecond++;
@@ -299,6 +304,7 @@ export class BeamtermRendererAdapter implements IRenderer {
     this.lastCursorY = cursor.y;
     this.lastCursorVisible = cursor.visible;
     this.lastCursorBlinkVisible = this.cursorVisible;
+    this.lastViewportY = viewportY;
 
     const renderStart = performance.now();
     try {
