@@ -242,6 +242,7 @@ async function main(): Promise<void> {
     terminalFontSize = config.terminalFontSize || 15;
     cursorStyle = config.cursorStyle || 'block';
     cursorBlink = config.cursorBlink || false;
+    selectionRequireShift = config.selectionRequireShift !== false; // Default: true
 
     // Apply UI theme and font size immediately
     themes.applyUITheme(currentTheme);
@@ -1244,7 +1245,7 @@ async function main(): Promise<void> {
   }
 
   if (selectionModeBtn) {
-    selectionModeBtn.addEventListener('click', () => {
+    selectionModeBtn.addEventListener('click', async () => {
       selectionRequireShift = !selectionRequireShift;
       // Apply to all sessions
       for (const session of sessionManager.getAllSessions()) {
@@ -1252,8 +1253,23 @@ async function main(): Promise<void> {
       }
       updateSelectionModeUI();
       console.log(`[terX] Selection mode: ${selectionRequireShift ? 'Shift+Click' : 'Direct'}`);
+
+      // Persist to storage and sync with Settings
+      await storage.saveConfig({ selectionRequireShift });
+      window.dispatchEvent(new CustomEvent('terx-selection-shift-sync', {
+        detail: { requireShift: selectionRequireShift }
+      }));
     });
   }
+
+  // Listen for selection mode changes from Settings panel
+  window.addEventListener('terx-selection-shift-change', ((e: CustomEvent) => {
+    selectionRequireShift = e.detail.requireShift;
+    for (const session of sessionManager.getAllSessions()) {
+      session.terminal.setSelectionRequireShift(selectionRequireShift);
+    }
+    updateSelectionModeUI();
+  }) as EventListener);
 
   // Emoji picker button
   const emojiBtn = document.getElementById('emoji-btn');
@@ -1299,6 +1315,58 @@ async function main(): Promise<void> {
   console.log('[terX] Press F3, Alt+D or click DEBUG button to open debug window');
 
   // ============================================================================
+  // Alt Key Tracking for Block Selection Mode
+  // Uses capture phase to intercept Alt before terminal input handler
+  // Detects Alt/Option key on all platforms (e.key === 'Alt' on macOS too)
+  // ============================================================================
+  let isAltPressed = false;
+
+  // Track Alt key state - check both e.key and e.altKey for cross-platform support
+  const handleAltKeyDown = (e: KeyboardEvent) => {
+    // Check if Alt key is pressed (works on macOS Option key too)
+    const isAltKey = e.key === 'Alt' || e.key === 'Option';
+    if (isAltKey && !isAltPressed) {
+      isAltPressed = true;
+      console.log('[terX] Alt/Option pressed - switching to Block selection mode');
+      // Switch all terminals to Block selection mode
+      for (const session of sessionManager.getAllSessions()) {
+        session.terminal.setBlockMode(true);
+      }
+    }
+  };
+
+  const handleAltKeyUp = (e: KeyboardEvent) => {
+    const isAltKey = e.key === 'Alt' || e.key === 'Option';
+    if (isAltKey && isAltPressed) {
+      isAltPressed = false;
+      console.log('[terX] Alt/Option released - switching to Linear selection mode');
+      // Switch all terminals back to Linear selection mode
+      for (const session of sessionManager.getAllSessions()) {
+        session.terminal.setBlockMode(false);
+      }
+    }
+  };
+
+  // Register with capture phase to get events before terminal
+  window.addEventListener('keydown', handleAltKeyDown, true);
+  window.addEventListener('keyup', handleAltKeyUp, true);
+
+  // Also track via document for broader compatibility
+  document.addEventListener('keydown', handleAltKeyDown, true);
+  document.addEventListener('keyup', handleAltKeyUp, true);
+
+  // Handle window blur - Alt may get "stuck" if user switches windows while pressing Alt
+  window.addEventListener('blur', () => {
+    if (isAltPressed) {
+      isAltPressed = false;
+      console.log('[terX] Window blur - resetting Block selection mode');
+      for (const session of sessionManager.getAllSessions()) {
+        session.terminal.setBlockMode(false);
+      }
+    }
+  });
+
+  // ============================================================================
   // Debug interface
   // ============================================================================
   window.terxDebug = {
@@ -1333,6 +1401,7 @@ async function main(): Promise<void> {
   // ============================================================================
   updateStatus('Ready - Press Ctrl+H', false);
   updateIndicator('beamterm', terminalFontSize);
+  updateSelectionModeUI(); // Reflect saved selection mode from config
 
   console.log('[terX] Terminal ready!');
 

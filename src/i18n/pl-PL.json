@@ -101,7 +101,10 @@
       "dangerZone": "Strefa niebezpieczna",
       "deleteAccount": "Usun konto",
       "deleteAccountWarning": "To trwale usunie Twoje konto i wszystkie dane."
-    }
+    },
+    "selection": "Zaznaczanie",
+    "selectionRequireShift": "Wymagaj Shift do zaznaczania",
+    "selectionRequireShiftDesc": "Przytrzymaj Shift aby zaznaczyc tekst. Przytrzymaj Alt dla zaznaczenia blokowego."
   },
   "hosts": {
     "title": "Hosty",

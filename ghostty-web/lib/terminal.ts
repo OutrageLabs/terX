@@ -951,6 +951,25 @@ export class Terminal implements ITerminalCore {
   }
 
   /**
+   * Set block selection mode (Alt key toggles this)
+   * @param enabled true = Block selection, false = Linear selection (default)
+   */
+  public setBlockMode(enabled: boolean): void {
+    const beamterm = this.renderer as import('./beamterm-renderer').BeamtermRendererAdapter;
+    if (beamterm?.setBlockMode) {
+      beamterm.setBlockMode(enabled);
+    }
+  }
+
+  /**
+   * Get current block selection mode
+   */
+  public getBlockMode(): boolean {
+    const beamterm = this.renderer as import('./beamterm-renderer').BeamtermRendererAdapter;
+    return beamterm?.getBlockMode?.() ?? false;
+  }
+
+  /**
    * Get the current viewport Y position.
    *
    * This is the number of lines scrolled back from the bottom of the
