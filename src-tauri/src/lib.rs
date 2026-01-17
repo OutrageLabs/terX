@@ -144,6 +144,12 @@ pub struct AppConfig {
     pub cursor_style: String,
     #[serde(rename = "cursorBlink", default)]
     pub cursor_blink: bool,
+    #[serde(rename = "enableCtrlShiftCV", default = "default_true")]
+    pub enable_ctrl_shift_cv: bool,
+    #[serde(rename = "enableInsertShortcuts", default)]
+    pub enable_insert_shortcuts: bool,
+    #[serde(rename = "selectionRequireShift", default = "default_true")]
+    pub selection_require_shift: bool,
     // Legacy - kept for backwards compatibility
     #[serde(rename = "fontSize", skip_serializing_if = "Option::is_none")]
     pub font_size: Option<i32>,
@@ -155,6 +161,7 @@ fn default_ui_font_size() -> i32 { 14 }
 fn default_terminal_font_family() -> String { "fira-code".to_string() }
 fn default_terminal_font_size() -> i32 { 15 }
 fn default_cursor_style() -> String { "block".to_string() }
+fn default_true() -> bool { true }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct OwnSupabaseConfig {
@@ -173,6 +180,9 @@ impl Default for AppConfig {
             terminal_font_size: 15,
             cursor_style: "block".to_string(),
             cursor_blink: false,
+            enable_ctrl_shift_cv: true,
+            enable_insert_shortcuts: false,
+            selection_require_shift: true,
             font_size: None,
             own_supabase: None,
         }

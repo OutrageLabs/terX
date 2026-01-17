@@ -28,6 +28,7 @@ export interface StorageConfig {
   cursorBlink: boolean;    // Cursor blinking
   enableCtrlShiftCV: boolean;     // Ctrl+Shift+C/V shortcuts (modern style)
   enableInsertShortcuts: boolean; // Ctrl+Insert, Shift+Insert shortcuts (classic style)
+  selectionRequireShift: boolean; // Require Shift key for text selection
   // Legacy - kept for backwards compatibility
   fontSize?: number;
   ownSupabase?: {
@@ -48,6 +49,7 @@ const DEFAULT_CONFIG: StorageConfig = {
   cursorBlink: false,
   enableCtrlShiftCV: true,       // Modern shortcuts enabled by default
   enableInsertShortcuts: false,  // Classic shortcuts disabled by default
+  selectionRequireShift: true,   // Require Shift for selection by default
   ownSupabase: {
     url: null,
     key: null,
