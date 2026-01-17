@@ -77,6 +77,9 @@ export class BeamtermRendererAdapter implements IRenderer {
   // Selection mode: true = require Shift+Click, false = direct selection
   private selectionRequireShift: boolean = true;
 
+  // Block selection mode: true = Block (Alt pressed), false = Linear (default)
+  private isBlockMode: boolean = false;
+
   // Dirty tracking state for render optimization
   private lastCursorX: number = -1;
   private lastCursorY: number = -1;
@@ -767,15 +770,56 @@ export class BeamtermRendererAdapter implements IRenderer {
 
   /**
    * Enable selection with current mode settings
+   * Uses isBlockMode to determine Linear vs Block selection
+   *
+   * Modifier logic:
+   * - Shift mode ON + Alt: require SHIFT+ALT, Block mode
+   * - Shift mode ON + no Alt: require SHIFT, Linear mode
+   * - Shift mode OFF + Alt: require ALT, Block mode
+   * - Shift mode OFF + no Alt: require NONE, Linear mode
    */
   private enableSelectionMode(): void {
-    if (this.selectionRequireShift) {
-      // Require Shift+Click to select - avoids conflicts with terminal apps (MC, vim, htop)
-      this.renderer.enableSelectionWithOptions(SelectionMode.Block, true, ModifierKeys.SHIFT);
+    const mode = this.isBlockMode ? SelectionMode.Block : SelectionMode.Linear;
+
+    // Build required modifiers based on current state
+    let modifiers: typeof ModifierKeys.NONE;
+    if (this.selectionRequireShift && this.isBlockMode) {
+      // Shift mode ON + Alt pressed = require both
+      modifiers = ModifierKeys.SHIFT.or(ModifierKeys.ALT);
+    } else if (this.selectionRequireShift) {
+      // Shift mode ON, no Alt = require only Shift
+      modifiers = ModifierKeys.SHIFT;
+    } else if (this.isBlockMode) {
+      // Shift mode OFF, Alt pressed = require only Alt
+      modifiers = ModifierKeys.ALT;
     } else {
-      // Direct selection - any click starts selection
-      this.renderer.enableSelectionWithOptions(SelectionMode.Block, true, ModifierKeys.NONE);
+      // Shift mode OFF, no Alt = no modifiers required
+      modifiers = ModifierKeys.NONE;
     }
+
+    const modeStr = this.isBlockMode ? 'Block' : 'Linear';
+    console.log(`[BeamtermRenderer] enableSelectionMode(): mode=${modeStr}, modifiers=${this.selectionRequireShift ? 'Shift' : ''}${this.isBlockMode ? '+Alt' : ''}`);
+
+    // Clear any existing selection before changing mode
+    this.renderer.clearSelection();
+    this.renderer.enableSelectionWithOptions(mode, true, modifiers);
+  }
+
+  /**
+   * Set block selection mode (Alt key toggles this)
+   * @param enabled true = Block selection, false = Linear selection (default)
+   */
+  setBlockMode(enabled: boolean): void {
+    if (this.isBlockMode === enabled) return;
+    this.isBlockMode = enabled;
+    this.enableSelectionMode();
+  }
+
+  /**
+   * Get current block selection mode
+   */
+  getBlockMode(): boolean {
+    return this.isBlockMode;
   }
 
   /**

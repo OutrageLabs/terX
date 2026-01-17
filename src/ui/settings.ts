@@ -756,6 +756,23 @@ function renderPreferencesTab(): string {
         </label>
       </div>
     </div>
+
+    <div class="divider"></div>
+
+    <!-- Selection Settings Section -->
+    <span class="settings-section-title">${t("settings.selection")}</span>
+    <div class="settings-row" style="margin-top: 0.5rem;">
+      <div class="form-group">
+        <label class="text-label">${t("settings.selectionRequireShift")}</label>
+        <span class="text-hint">${t("settings.selectionRequireShiftDesc")}</span>
+      </div>
+      <div class="flex items-center h-9">
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-selection-shift" data-action="toggle-selection-shift" ${config.selectionRequireShift !== false ? "checked" : ""}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
   `;
 }
 
@@ -897,6 +914,25 @@ function setupPreferencesEventListeners(): void {
     await storage.saveConfig({ enableInsertShortcuts: enabled });
     window.dispatchEvent(new CustomEvent("terx-clipboard-shortcuts-change"));
   });
+
+  // Selection mode toggle
+  const selectionShiftToggle = content.querySelector('[data-action="toggle-selection-shift"]');
+  selectionShiftToggle?.addEventListener("change", async (e) => {
+    const requireShift = (e.target as HTMLInputElement).checked;
+    await storage.saveConfig({ selectionRequireShift: requireShift });
+    window.dispatchEvent(new CustomEvent("terx-selection-shift-change", {
+      detail: { requireShift }
+    }));
+  });
+
+  // Sync with footer toggle (when changed from footer)
+  const handleSelectionShiftSync = (e: Event) => {
+    const customEvent = e as CustomEvent;
+    if (selectionShiftToggle) {
+      (selectionShiftToggle as HTMLInputElement).checked = customEvent.detail.requireShift;
+    }
+  };
+  window.addEventListener("terx-selection-shift-sync", handleSelectionShiftSync);
 }
 
 // =============================================================================

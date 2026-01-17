@@ -101,7 +101,10 @@
       "dangerZone": "Danger Zone",
       "deleteAccount": "Delete Account",
       "deleteAccountWarning": "This will permanently delete your account and all data."
-    }
+    },
+    "selection": "Selection",
+    "selectionRequireShift": "Require Shift for selection",
+    "selectionRequireShiftDesc": "Hold Shift to select text. Hold Alt for block selection."
   },
   "hosts": {
     "title": "Hosts",
