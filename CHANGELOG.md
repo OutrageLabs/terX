@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.1] - 2026-01-17
+### :bug: Bug Fixes
+- [`f7c4bda`](https://github.com/OutrageLabs/terX/commit/f7c4bda) - add SSH keepalive to prevent connection timeouts *(commit by [@kofany](https://github.com/kofany))*
+
+### :wrench: Chores
+- [`3e8f1a2`](https://github.com/OutrageLabs/terX/commit/3e8f1a2) - fix changelog workflow (GITHUB_TOKEN limitation) *(commit by [@kofany](https://github.com/kofany))*
+
+
+## [v0.2.0] - 2026-01-17
+### :sparkles: New Features
+- [`c076d7f`](https://github.com/OutrageLabs/terX/commit/c076d7f) - multiple connections per host + Cmd/Ctrl+T shortcut *(commit by [@kofany](https://github.com/kofany))*
+- [`ca15996`](https://github.com/OutrageLabs/terX/commit/ca15996) - macOS-style toggle switches + persist all settings *(commit by [@kofany](https://github.com/kofany))*
+- [`a80462f`](https://github.com/OutrageLabs/terX/commit/a80462f) - Alt key toggles block selection mode *(commit by [@kofany](https://github.com/kofany))*
+
+
+## [v0.1.9] - 2026-01-17
+### :sparkles: New Features
+- [`b6cbed8`](https://github.com/OutrageLabs/terX/commit/b6cbed8) - configurable clipboard shortcuts (Ctrl+Shift+C/V, Shift+Insert) *(commit by [@kofany](https://github.com/kofany))*
+
+### :bug: Bug Fixes
+- [`1395cf1`](https://github.com/OutrageLabs/terX/commit/1395cf1) - terminal scrollback history not rendering when scrolled *(commit by [@kofany](https://github.com/kofany))*
+
+### :wrench: Chores
+- [`941d49b`](https://github.com/OutrageLabs/terX/commit/941d49b) - bump version to 0.1.9 *(commit by [@kofany](https://github.com/kofany))*
+
+
+## [v0.1.8] - 2026-01-16
+### :sparkles: New Features
+- [`ef82cd8`](https://github.com/OutrageLabs/terX/commit/ef82cd8) - smooth selection rendering during mouse drag *(commit by [@kofany](https://github.com/kofany))*
+- [`18f682b`](https://github.com/OutrageLabs/terX/commit/18f682b) - cursor transparency and configuration improvements *(commit by [@kofany](https://github.com/kofany))*
+
+### :wrench: Chores
+- [`d6699ee`](https://github.com/OutrageLabs/terX/commit/d6699ee) - bump version to 0.1.8 *(commit by [@kofany](https://github.com/kofany))*
+
+
 ## [v0.1.7] - 2026-01-16
 ### :sparkles: New Features
 - [`7dbe012`](https://github.com/OutrageLabs/terX/commit/7dbe012b9983a5035ce77b4dcb144d47e6d61a22) - Implement SSH host key verification system *(commit by [@kofany](https://github.com/kofany))*
@@ -122,3 +157,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com> *(commit by [@kofany](ht
 [v0.1.5]: https://github.com/OutrageLabs/terX/compare/v0.1.4...v0.1.5
 [v0.1.6]: https://github.com/OutrageLabs/terX/compare/v0.1.5...v0.1.6
 [v0.1.7]: https://github.com/OutrageLabs/terX/compare/v0.1.6...v0.1.7
+[v0.1.8]: https://github.com/OutrageLabs/terX/compare/v0.1.7...v0.1.8
+[v0.1.9]: https://github.com/OutrageLabs/terX/compare/v0.1.8...v0.1.9
+[v0.2.0]: https://github.com/OutrageLabs/terX/compare/v0.1.9...v0.2.0
+[v0.2.1]: https://github.com/OutrageLabs/terX/compare/v0.2.0...v0.2.1
