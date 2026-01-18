@@ -141,6 +141,19 @@
   <!-- Event Log at TOP -->
   <div class="section">
     <h2>Event Log</h2>
+    <div style="margin-bottom: 8px;">
+      <button id="escDebugToggle" style="
+        background: var(--color-surface-1);
+        border: 1px solid var(--color-surface-2);
+        color: var(--color-text);
+        padding: 4px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 11px;
+        font-family: inherit;
+      ">Enable Escape Debug</button>
+      <span id="escDebugStatus" style="margin-left: 8px; font-size: 11px; color: var(--color-subtext-0);">OFF</span>
+    </div>
     <div class="log-area" id="logArea"></div>
   </div>
 
@@ -425,6 +438,34 @@
         addLog('No metrics received. Is terminal window open?', 'warn');
       }
     }, 3000);
+
+    // Escape debug toggle
+    const escDebugToggle = document.getElementById('escDebugToggle');
+    const escDebugStatus = document.getElementById('escDebugStatus');
+    let escDebugEnabled = false;
+
+    const { emit } = window.__TAURI__.event;
+
+    escDebugToggle.addEventListener('click', async () => {
+      escDebugEnabled = !escDebugEnabled;
+      await emit('escape-debug-toggle', { enabled: escDebugEnabled });
+
+      if (escDebugEnabled) {
+        escDebugToggle.textContent = 'Disable Escape Debug';
+        escDebugToggle.style.background = 'var(--color-green)';
+        escDebugToggle.style.color = 'var(--color-crust)';
+        escDebugStatus.textContent = 'ON - logging escape sequences';
+        escDebugStatus.style.color = 'var(--color-green)';
+        addLog('[ESC DEBUG] Enabled - escape sequences will be logged', 'info');
+      } else {
+        escDebugToggle.textContent = 'Enable Escape Debug';
+        escDebugToggle.style.background = 'var(--color-surface-1)';
+        escDebugToggle.style.color = 'var(--color-text)';
+        escDebugStatus.textContent = 'OFF';
+        escDebugStatus.style.color = 'var(--color-subtext-0)';
+        addLog('[ESC DEBUG] Disabled', 'info');
+      }
+    });
   </script>
 </body>
 </html>

@@ -47,7 +47,7 @@ import type { HostWithRelations } from './lib/storage';
 import * as themes from './lib/themes';
 import { t } from './i18n';
 import type { TerminalFontFamily } from './lib/themes';
-import { sendDebugLog } from './lib/debug-logger';
+import { sendDebugLog, debugEscapeSequences, setEscapeDebugEnabled, isEscapeDebugEnabled } from './lib/debug-logger';
 import { handleHostKeyVerifyEvent, type HostKeyVerifyEvent } from './ui/hostkey-dialog';
 
 // Global type declarations
@@ -363,7 +363,12 @@ async function main(): Promise<void> {
     const unlistenData = await listen<number[]>(`ssh-data-${sshSessionId}`, (event) => {
       const bytes = new Uint8Array(event.payload);
       const decoder = new TextDecoder();
-      terminal.write(decoder.decode(bytes));
+      const data = decoder.decode(bytes);
+
+      // Debug: log escape sequences if enabled (toggle with F4 in debug window)
+      debugEscapeSequences(data);
+
+      terminal.write(data);
     });
 
     // Setup SSH close listener - auto-close tab after connection ends
@@ -1208,8 +1213,16 @@ async function main(): Promise<void> {
         clearInterval(debugMetricsInterval);
         debugMetricsInterval = null;
       }
+      // Disable escape debug when debug window closes
+      setEscapeDebugEnabled(false);
     });
   }
+
+  // Listen for escape debug toggle from debug window
+  listen<{ enabled: boolean }>('escape-debug-toggle', (event) => {
+    setEscapeDebugEnabled(event.payload.enabled);
+    console.log(`[terX] Escape debug ${event.payload.enabled ? 'enabled' : 'disabled'}`);
+  });
 
   // F3 or Alt+D to toggle debug window
   window.addEventListener('keydown', (e) => {
@@ -1404,6 +1417,24 @@ async function main(): Promise<void> {
       sessionManager.closeAllSessions();
     },
     toggleSidebar: uiToggleSidebar,
+    // Escape sequence debugging
+    escapeDebug: {
+      enable: () => {
+        setEscapeDebugEnabled(true);
+        sendDebugLog('[ESC DEBUG] Enabled - escape sequences will be logged', 'info');
+      },
+      disable: () => {
+        setEscapeDebugEnabled(false);
+        sendDebugLog('[ESC DEBUG] Disabled', 'info');
+      },
+      toggle: () => {
+        const newState = !isEscapeDebugEnabled();
+        setEscapeDebugEnabled(newState);
+        sendDebugLog(`[ESC DEBUG] ${newState ? 'Enabled' : 'Disabled'}`, 'info');
+        return newState;
+      },
+      isEnabled: isEscapeDebugEnabled,
+    },
   };
 
   // ============================================================================

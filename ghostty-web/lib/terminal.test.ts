@@ -2990,3 +2990,141 @@ describe('Synchronous open()', () => {
     term.dispose();
   });
 });
+
+/**
+ * Screen vs Direct Connection Test
+ *
+ * This test reproduces the issue where screen transforms ECH (Erase Character)
+ * into CUF (Cursor Forward), causing visual artifacts when using weechat.
+ *
+ * Without screen: weechat uses ECH to clear cells after highlighted nick
+ * With screen: screen transforms this to CUF which doesn't clear cells
+ */
+describe('Screen compatibility - ECH vs CUF', () => {
+  test('ECH clears cells with default background after colored text', async () => {
+    if (typeof document === 'undefined') return;
+
+    const term = await createIsolatedTerminal({ cols: 80, rows: 24 });
+    const container = document.createElement('div');
+    term.open(container);
+
+    try {
+      // Simulate weechat WITHOUT screen (uses ECH):
+      // 1. Set red background (palette 124) + white text (palette 231)
+      term.write('\x1b[48;5;124m\x1b[38;5;231m');
+      // 2. Write nick
+      term.write('kofany');
+      // 3. Reset colors
+      term.write('\x1b[39;49m');
+      // 4. Write more text
+      term.write('>');
+      // 5. ECH - Erase 10 characters (weechat clears rest of line)
+      term.write('\x1b[10X');
+
+      term.wasmTerm?.update();
+
+      const line = term.wasmTerm!.getLine(0);
+
+      // Nick should have red background (palette 124 = #af0000)
+      const nickCell = line[0]; // 'k' from 'kofany'
+      expect(nickCell.codepoint).toBe('k'.charCodeAt(0));
+      // Red background from palette 124
+      expect(nickCell.bg_r).toBeGreaterThan(100); // Should be reddish
+      expect(nickCell.bg_g).toBe(0);
+      expect(nickCell.bg_b).toBe(0);
+
+      // After ECH, cells should have DEFAULT background (0,0,0 black)
+      const clearedCell = line[7]; // After '>' - should be cleared by ECH
+      expect(clearedCell.bg_r).toBe(0);
+      expect(clearedCell.bg_g).toBe(0);
+      expect(clearedCell.bg_b).toBe(0);
+    } finally {
+      term.dispose();
+    }
+  });
+
+  test('CUF does NOT clear cells - potential screen artifact', async () => {
+    if (typeof document === 'undefined') return;
+
+    const term = await createIsolatedTerminal({ cols: 80, rows: 24 });
+    const container = document.createElement('div');
+    term.open(container);
+
+    try {
+      // First, fill line with some content (simulating previous content)
+      term.write('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX');
+      term.write('\x1b[1G'); // Go to column 1
+
+      // Simulate weechat WITH screen (uses CUF instead of ECH):
+      // 1. Set red background + white text
+      term.write('\x1b[48;5;124m\x1b[38;5;231m');
+      // 2. Write nick
+      term.write('kofany');
+      // 3. Reset colors SEPARATELY (like screen does)
+      term.write('\x1b[39m\x1b[49m');
+      // 4. Write more text
+      term.write('>');
+      // 5. CUF - Cursor Forward (screen's transformation of ECH)
+      term.write('\x1b[10C'); // Move cursor right 10, DON'T clear
+
+      term.wasmTerm?.update();
+
+      const line = term.wasmTerm!.getLine(0);
+
+      // Nick should still have red background
+      const nickCell = line[0];
+      expect(nickCell.codepoint).toBe('k'.charCodeAt(0));
+      expect(nickCell.bg_r).toBeGreaterThan(100);
+
+      // After CUF, cells should STILL contain old content (X's)
+      // This is the ARTIFACT - screen doesn't clear, so old content remains
+      const unclearedCell = line[7]; // After '>' - NOT cleared by CUF
+      expect(unclearedCell.codepoint).toBe('X'.charCodeAt(0));
+      // Background should be DEFAULT (0,0,0) since we only wrote X without bg
+      expect(unclearedCell.bg_r).toBe(0);
+    } finally {
+      term.dispose();
+    }
+  });
+
+  test('screen-style sequences: separate fg/bg reset works correctly', async () => {
+    if (typeof document === 'undefined') return;
+
+    const term = await createIsolatedTerminal({ cols: 80, rows: 24 });
+    const container = document.createElement('div');
+    term.open(container);
+
+    try {
+      // Test that separate resets work same as combined
+      // Combined: \x1b[39;49m
+      // Separate: \x1b[39m\x1b[49m
+
+      // Write with red bg, then reset combined
+      term.write('\x1b[48;5;124mA\x1b[39;49mB');
+
+      // Write with red bg, then reset separate
+      term.write('\x1b[48;5;124mC\x1b[39m\x1b[49mD');
+
+      term.wasmTerm?.update();
+      const line = term.wasmTerm!.getLine(0);
+
+      // A should have red bg
+      expect(line[0].codepoint).toBe('A'.charCodeAt(0));
+      expect(line[0].bg_r).toBeGreaterThan(100);
+
+      // B should have default bg (after combined reset)
+      expect(line[1].codepoint).toBe('B'.charCodeAt(0));
+      expect(line[1].bg_r).toBe(0);
+
+      // C should have red bg
+      expect(line[2].codepoint).toBe('C'.charCodeAt(0));
+      expect(line[2].bg_r).toBeGreaterThan(100);
+
+      // D should have default bg (after separate reset)
+      expect(line[3].codepoint).toBe('D'.charCodeAt(0));
+      expect(line[3].bg_r).toBe(0);
+    } finally {
+      term.dispose();
+    }
+  });
+});
