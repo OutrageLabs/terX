@@ -24,6 +24,7 @@ src-tauri/target/
 # Bun
 bun.lockb
 # Local database
+memory.db
 memory.db-shm
 memory.db-wal
 *.db-shm
