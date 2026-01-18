@@ -23,5 +23,13 @@ src-tauri/target/
 
 # Bun
 bun.lockb
+# Local database
 memory.db-shm
 memory.db-wal
+*.db-shm
+*.db-wal
+
+# Temporary/backup files
+ghostty-web/terminal.zig.backup
+ghostty-web/terminal.zig.ORIGINAL
+raport.md
