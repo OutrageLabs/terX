@@ -53,8 +53,7 @@
 
 | Shortcut | Action |
 |----------|--------|
-| `F5` | Toggle file manager / Copy files |
-| `Ctrl+F5` | Open file manager (transfer-only) |
+| `Ctrl+F5` | Open file manager (from sidebar, transfer-only mode) |
 | `F6` | Move files |
 | `F7` | Create directory |
 | `F8` | Delete files |
