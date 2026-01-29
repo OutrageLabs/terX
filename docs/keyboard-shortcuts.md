@@ -6,7 +6,6 @@
 |----------|--------|
 | `Ctrl/Cmd+H` | Toggle sidebar (host list) |
 | `Ctrl/Cmd+,` | Toggle settings panel |
-| `Ctrl/Cmd+N` | Add new host |
 | `F1` | Toggle shortcuts help |
 | `F3` or `Alt+D` | Open debug window |
 
@@ -18,7 +17,6 @@
 | `Ctrl+Tab` | Next tab |
 | `Ctrl+Shift+Tab` | Previous tab |
 | `Ctrl/Cmd+W` | Close current tab |
-| `Ctrl/Cmd+1-9` | Switch to tab 1-9 |
 
 ## Terminal
 
@@ -51,17 +49,20 @@
 
 ## File Manager (SFTP)
 
+Open file manager by clicking the folder icon next to a host in the sidebar.
+
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+F5` | Open file manager (from sidebar, transfer-only mode) |
+| `Tab` | Switch between panes |
+| `Enter` | Open directory / Download file |
+| `F5` | Copy files |
 | `F6` | Move files |
 | `F7` | Create directory |
-| `F8` | Delete files |
+| `F8` or `Del` | Delete files |
 | `F2` | Rename |
-| `Tab` | Switch between panes |
 | `Space` | Select/deselect file |
 | `Insert` | Select and move to next |
-| `Ctrl+A` | Select all |
+| `Ctrl/Cmd+A` | Select all |
 | `Escape` | Close file manager |
 
 ## Emoji
