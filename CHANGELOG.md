@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.6] - 2026-01-29
+
+### :sparkles: New Features
+
+-  - ### :memo: Documentation update CHANGELOG.md for v0.2.4
+-  - ### :construction_worker: CI/CD cross-repo release workflow to publish on OutrageLabs/terX
+-  - ### :memo: Documentation add RELEASES.md and update CLAUDE.md with dual-repo info
+-  - ### :bug: Bug Fixes file manager tab shows host name in transfer-only mode
+-  - ### :bug: Bug Fixes remove F5 shortcut for file manager (conflicts with mc, vim)
+-  - ### :bug: Bug Fixes verify and correct keyboard shortcuts in help panel
+-  - ### :bug: Bug Fixes Escape key no longer closes dialogs when typing in text input
+-  - ### :wrench: Chores bump version to 0.2.5
+-  - ### :bug: Bug Fixes add missing .msi/.rpm to release + fix changelog generation
+-  - ### :wrench: Chores bump version to 0.2.6
+
+
+
+
 ## [v0.2.4] - 2026-01-28
 
 
