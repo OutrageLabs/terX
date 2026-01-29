@@ -5,6 +5,90 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.8] - 2026-01-29
+
+### :sparkles: New Features
+
+-  - v0.1.2: Fix character rendering at large font sizes
+-  - ### :sparkles: New Features add emoji picker and shortcuts help (v0.1.3)
+-  - ### :memo: Documentation update CHANGELOG.md for v0.1.3
+-  - ### :sparkles: New Features dual-pane file manager + SSH key auth fixes
+-  - Fix Unicode artifacts in WASM terminal by ensuring memory zeroing
+-  - Update README for v0.1.4 - new screenshots and File Manager feature
+-  - Merge feature/file-manager: SFTP File Manager + Unicode fixes
+-  - ### :wrench: Chores bump version to 0.1.4
+-  - ### :memo: Documentation update CHANGELOG.md for v0.1.4
+-  - ### :bug: Bug Fixes SSH freeze with russh 0.56 + update all dependencies
+-  - v0.1.5: Enhanced debug panel + error dialogs
+-  - ### :memo: Documentation update CHANGELOG.md for v0.1.5
+-  - v0.1.6: Auto-install terminfo + Help Panel redesign
+-  - ### :memo: Documentation update CHANGELOG.md for v0.1.6
+-  - ### :bug: Bug Fixes Complete i18n for Help Panel and error messages
+-  - ### :bug: Bug Fixes Use rsa-sha2-256/512 instead of deprecated ssh-rsa
+-  - ### :sparkles: New Features Implement SSH host key verification system
+-  - ### :wrench: Chores bump version to 0.1.7
+-  - ### :memo: Documentation update CHANGELOG.md for v0.1.7
+-  - ### :sparkles: New Features cursor transparency and configuration improvements
+-  - ### :sparkles: New Features smooth selection rendering during mouse drag
+-  - ### :wrench: Chores bump version to 0.1.8
+-  - ### :sparkles: New Features configurable clipboard shortcuts (Ctrl+Shift+C/V, Shift+Insert)
+-  - ### :bug: Bug Fixes terminal scrollback history not rendering when scrolled
+-  - ### :wrench: Chores bump version to 0.1.9
+-  - ### :sparkles: New Features Alt key toggles block selection mode
+-  - ### :sparkles: New Features macOS-style toggle switches + persist all settings
+-  - ### :sparkles: New Features multiple connections per host + Cmd/Ctrl+T shortcut
+-  - ### :bug: Bug Fixes add SSH keepalive to prevent connection timeouts
+-  - ### :wrench: Chores fix changelog workflow + update CHANGELOG.md
+-  - ### :bug: Bug Fixes restore corrupted patch file + cleanup
+-  - ### :wrench: Chores add memory.db to gitignore
+-  - refactor: rewrite SelectionManager with JS-based rendering
+-  - ### :bug: Bug Fixes selection behavior in apps with mouse tracking (irssi, vim, MC)
+-  - ### :wrench: Chores remove dead code and fix TypeScript errors
+-  - ### :wrench: Chores bump @kofany/beamterm-terx to 0.12.13
+-  - ### :bug: Bug Fixes fix tmux DCS passthrough unwrap causing base64 leakage
+-  - ### :wrench: Chores v0.2.2
+-  - ### :sparkles: New Features focus management, dead key handling, storage cache, streaming UTF-8
+-  - ### :wrench: Chores v0.2.3
+-  - ### :memo: Documentation update CHANGELOG.md for v0.2.3
+-  - ### :bug: Bug Fixes enable commitMode for changelog builder action
+-  - ### :memo: Documentation update CHANGELOG.md for v0.2.3
+-  - ### :memo: Documentation fix CHANGELOG.md for v0.2.3 (manual correction)
+-  - ### :memo: Documentation expand CHANGELOG.md for v0.2.3 with full details
+-  - ### :bug: Bug Fixes restore PageList.zig memory zeroing for WASM + bump to v0.2.4
+-  - ### :memo: Documentation update CHANGELOG.md for v0.2.4
+-  - ### :construction_worker: CI/CD cross-repo release workflow to publish on OutrageLabs/terX
+-  - ### :memo: Documentation add RELEASES.md and update CLAUDE.md with dual-repo info
+-  - ### :bug: Bug Fixes file manager tab shows host name in transfer-only mode
+-  - ### :bug: Bug Fixes remove F5 shortcut for file manager (conflicts with mc, vim)
+-  - ### :bug: Bug Fixes verify and correct keyboard shortcuts in help panel
+-  - ### :bug: Bug Fixes Escape key no longer closes dialogs when typing in text input
+-  - ### :wrench: Chores bump version to 0.2.5
+-  - ### :bug: Bug Fixes add missing .msi/.rpm to release + fix changelog generation
+-  - ### :wrench: Chores bump version to 0.2.6
+-  - ### :memo: Documentation update CHANGELOG.md for v0.2.6
+-  - ### :bug: Bug Fixes correct SGR mouse motion encoding for no-button events
+-  - ### :bug: Bug Fixes remove F3/Alt+D shortcut for debug window (conflicts with mc)
+-  - ### :sparkles: New Features manual password entry + COLORTERM auto-injection
+-  - ### :memo: Documentation update CHANGELOG.md for v0.2.7
+-  - ### :construction_worker: CI/CD add AUR package auto-publishing
+-  - ### :construction_worker: CI/CD add native Arch Linux build
+-  - ### :bug: Bug Fixes password dialog loses focus to terminal
+-  - ### :wrench: Chores bump version to 0.2.8
+-  - ### :bug: Bug Fixes AUR uses native .pkg.tar.zst instead of .deb
+-  - ### :bug: Bug Fixes add unzip for Bun install on Arch
+-  - ### :wrench: Chores bump version to 0.2.9
+-  - ### :wrench: Chores set version to 0.2.8
+-  - ### :bug: Bug Fixes use npm instead of bun for Arch build
+-  - ### :bug: Bug Fixes install bun with symlink for Arch build
+-  - ### :bug: Bug Fixes simplify Arch package creation from Ubuntu .deb
+-  - ### :bug: Bug Fixes native Arch Linux build with direct bun binary download
+-  - ### :bug: Bug Fixes add nodejs for bun to delegate vite execution
+-  - ### :bug: Bug Fixes add xdg-utils for AppImage bundling
+-  - ### :bug: Bug Fixes build only binary on Arch, skip bundlers
+
+
+
+
 ## [v0.2.7] - 2026-01-29
 
 ### :sparkles: New Features
