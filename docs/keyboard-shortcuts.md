@@ -7,7 +7,6 @@
 | `Ctrl/Cmd+H` | Toggle sidebar (host list) |
 | `Ctrl/Cmd+,` | Toggle settings panel |
 | `F1` | Toggle shortcuts help |
-| `F3` or `Alt+D` | Open debug window |
 
 ## Tab Management
 
