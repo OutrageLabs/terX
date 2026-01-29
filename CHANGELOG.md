@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.9] - 2026-01-29
+
+### :sparkles: New Features
+
+-  - ### :memo: Documentation update CHANGELOG.md for v0.2.8
+-  - ### :sparkles: New Features remove 'Own Supabase' option from storage selector
+-  - ### :sparkles: New Features add auto-update system with GitHub Releases integration
+
+
+
+
 ## [v0.2.8] - 2026-01-29
 
 ### :sparkles: New Features
