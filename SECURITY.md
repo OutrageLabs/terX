@@ -15,7 +15,7 @@ We take security vulnerabilities seriously. If you discover a security issue in 
 
 **DO NOT** create a public GitHub issue for security vulnerabilities.
 
-Instead, please send an email to: **security@outragelabs.com**
+Instead, please send an email to: **j@dabrowski.biz**
 
 Include the following information:
 - Description of the vulnerability
