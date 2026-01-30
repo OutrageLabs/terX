@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.10] - 2026-01-30
+
+### :sparkles: New Features
+
+-  - ### :memo: Documentation update CHANGELOG.md for v0.2.9
+-  - security: remove legacy credentials.rs with insecure key derivation
+-  - Merge remote-tracking branch 'kofany/main'
+-  - ### :bug: Bug Fixes password dialog focus escape and OpenWRT shell prompt
+-  - ### :sparkles: New Features improve changelog display in update dialog
+-  - ### :wrench: Chores bump version to v0.2.10
+
+
+
+
 ## [v0.2.9] - 2026-01-29
 
 ### :sparkles: New Features
