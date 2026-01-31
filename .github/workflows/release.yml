@@ -366,6 +366,14 @@ jobs:
           git diff --staged --quiet || git commit -m "docs: update CHANGELOG.md for ${TAG_NAME}"
           git push
 
+      - name: Update release body with changelog
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHANGELOG_CONTENT: ${{ steps.changelog.outputs.changelog }}
+        run: |
+          printf '%s\n' "${CHANGELOG_CONTENT}" > release_body.md
+          gh release edit "${TAG_NAME}" --notes-file release_body.md
+
   # Publish to AUR
   publish-aur:
     needs: publish-release
