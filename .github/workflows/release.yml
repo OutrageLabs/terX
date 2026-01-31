@@ -1,0 +1,482 @@
+# Workflow for OutrageLabs/terX (PUBLIC repo)
+# Builds from private source repo, publishes releases here
+# FREE GitHub Actions minutes (public repo)
+
+name: Build and Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v0.1.0)'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS Apple Silicon
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            name: macOS-arm64
+
+          # macOS Intel
+          - platform: macos-15-intel
+            target: x86_64-apple-darwin
+            name: macOS-x64
+
+          # Windows
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            name: Windows-x64
+
+          # Linux
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            name: Linux-x64
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout from private repo
+        uses: actions/checkout@v4
+        with:
+          repository: OutrageLabs/terx-source
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          submodules: false
+
+      # Linux dependencies
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      # Setup
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # Build
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build Tauri app
+        run: bun run tauri build --target ${{ matrix.target }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload artifacts for release job
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe
+            src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
+            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+            src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
+            src-tauri/target/${{ matrix.target }}/release/bundle/rpm/*.rpm
+          if-no-files-found: ignore
+
+  # Build natively on Arch Linux
+  build-arch:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm \
+            base-devel \
+            git \
+            rust \
+            nodejs \
+            webkit2gtk-4.1 \
+            gtk3 \
+            libsoup3 \
+            openssl \
+            libappindicator-gtk3 \
+            librsvg \
+            curl \
+            wget \
+            file \
+            patchelf \
+            unzip \
+            zstd
+
+      - name: Install Bun
+        run: |
+          # Download bun binary directly
+          curl -fsSL https://github.com/oven-sh/bun/releases/latest/download/bun-linux-x64.zip -o bun.zip
+          unzip bun.zip
+          mv bun-linux-x64/bun /usr/local/bin/bun
+          chmod +x /usr/local/bin/bun
+          bun --version
+
+      - name: Checkout from private repo
+        uses: actions/checkout@v4
+        with:
+          repository: OutrageLabs/terx-source
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          submodules: false
+
+      - name: Install frontend dependencies
+        run: bun install
+
+      - name: Build frontend
+        run: bun run build
+
+      - name: Build Rust binary
+        run: cd src-tauri && cargo build --release
+
+      - name: Create Arch package
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG_NAME#v}"
+          PKG_NAME="terx-bin-${VERSION}-1-x86_64.pkg.tar.zst"
+
+          # Create package structure
+          mkdir -p pkg/usr/bin
+          mkdir -p pkg/usr/share/applications
+          mkdir -p pkg/usr/share/icons/hicolor/256x256/apps
+          mkdir -p pkg/usr/share/licenses/terx-bin
+
+          # Copy binary (try both possible names)
+          if [ -f src-tauri/target/release/ter-x ]; then
+            cp src-tauri/target/release/ter-x pkg/usr/bin/
+          else
+            cp src-tauri/target/release/terx pkg/usr/bin/ter-x
+          fi
+          chmod 755 pkg/usr/bin/ter-x
+          ln -sf ter-x pkg/usr/bin/terx
+
+          # Copy desktop file and icon from bundle
+          find src-tauri/target/release/bundle -name "*.desktop" -exec cp {} pkg/usr/share/applications/terx.desktop \; 2>/dev/null || \
+            echo -e "[Desktop Entry]\nName=terX\nExec=terx\nIcon=terx\nType=Application\nCategories=Network;RemoteAccess;" > pkg/usr/share/applications/terx.desktop
+          cp src-tauri/icons/128x128.png pkg/usr/share/icons/hicolor/256x256/apps/terx.png 2>/dev/null || true
+
+          # License
+          echo "terX is proprietary software. See https://github.com/OutrageLabs/terX" > pkg/usr/share/licenses/terx-bin/LICENSE
+
+          # Create .PKGINFO
+          cat > pkg/.PKGINFO << EOF
+          pkgname = terx-bin
+          pkgver = ${VERSION}-1
+          pkgbase = terx-bin
+          pkgdesc = Cross-platform SSH client with GPU-accelerated terminal rendering
+          url = https://github.com/OutrageLabs/terX
+          builddate = $(date +%s)
+          packager = GitHub Actions
+          size = $(du -sb pkg/usr | cut -f1)
+          arch = x86_64
+          license = custom:proprietary
+          depend = webkit2gtk-4.1
+          depend = gtk3
+          depend = glib2
+          depend = gdk-pixbuf2
+          depend = cairo
+          depend = pango
+          depend = libsoup3
+          depend = openssl
+          depend = hicolor-icon-theme
+          optdepend = libappindicator-gtk3: system tray support
+          EOF
+
+          # Build package with zstd (fakeroot not needed for simple tar)
+          cd pkg
+          tar --zstd -cf "../${PKG_NAME}" .PKGINFO *
+          cd ..
+
+          # Move to output directory
+          mkdir -p output
+          mv "${PKG_NAME}" output/
+          ls -la output/
+
+      - name: Upload Arch artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Linux-Arch-x64
+          path: output/*.pkg.tar.zst
+          if-no-files-found: error
+
+  # Publish release (same repo - OutrageLabs/terX)
+  publish-release:
+    needs: [build, build-arch]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List artifacts
+        run: find artifacts -type f
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: 'terX ${{ github.ref_name }}'
+          body: |
+            ## Downloads
+
+            | Platform | Architecture | File |
+            |----------|--------------|------|
+            | Windows | x64 | `.exe` / `.msi` installer |
+            | macOS | Apple Silicon (M1/M2/M3/M4) | `.dmg` (aarch64) |
+            | macOS | Intel | `.dmg` (x64) |
+            | Linux (Ubuntu/Debian) | x64 | `.deb` |
+            | Linux (Fedora/RHEL) | x64 | `.rpm` |
+            | Linux (Arch/Manjaro) | x64 | `.pkg.tar.zst` |
+            | Linux (Universal) | x64 | `.AppImage` |
+
+            ---
+
+            **First time on macOS?** Right-click → Open (bypass Gatekeeper)
+
+            **Arch Linux:**
+            ```bash
+            sudo pacman -U terx-bin-*.pkg.tar.zst
+            ```
+
+            **Linux AppImage:**
+            ```bash
+            chmod +x terX_*.AppImage
+            ./terX_*.AppImage
+            ```
+
+            See [CHANGELOG.md](https://github.com/OutrageLabs/terX/blob/main/CHANGELOG.md) for details.
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*.exe
+            artifacts/**/*.msi
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
+            artifacts/**/*.rpm
+            artifacts/**/*.pkg.tar.zst
+
+  # Generate CHANGELOG and sync to both repos
+  update-changelog:
+    needs: publish-release
+    runs-on: ubuntu-latest
+    env:
+      TAG_NAME: ${{ github.ref_name }}
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          repository: OutrageLabs/terx-source
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          fetch-depth: 0
+          ref: main
+
+      - name: Generate changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v5
+        with:
+          mode: COMMIT
+          configurationJson: |
+            {
+              "categories": [
+                { "title": "### :sparkles: New Features", "labels": [] },
+                { "title": "### :bug: Bug Fixes", "labels": [] },
+                { "title": "### :construction_worker: CI/CD", "labels": [] },
+                { "title": "### :memo: Documentation", "labels": [] },
+                { "title": "### :wrench: Chores", "labels": [] }
+              ],
+              "sort": { "order": "ASC", "on_property": "mergedAt" },
+              "template": "#{{CHANGELOG}}",
+              "pr_template": "- #{{TITLE}} (#{{NUMBER}})",
+              "commit_template": "- `#{{SHA_SHORT}}` - #{{TITLE}}",
+              "transformers": [
+                { "pattern": "^feat(\\(.+\\))?:", "target": "### :sparkles: New Features" },
+                { "pattern": "^fix(\\(.+\\))?:", "target": "### :bug: Bug Fixes" },
+                { "pattern": "^ci(\\(.+\\))?:", "target": "### :construction_worker: CI/CD" },
+                { "pattern": "^docs(\\(.+\\))?:", "target": "### :memo: Documentation" },
+                { "pattern": "^chore(\\(.+\\))?:", "target": "### :wrench: Chores" }
+              ],
+              "commitMode": true
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+
+      - name: Update CHANGELOG.md
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          ENTRY="## [${TAG_NAME}] - ${DATE}
+
+          ${{ steps.changelog.outputs.changelog }}
+
+          "
+          # Insert after the header (line 7)
+          head -7 CHANGELOG.md > CHANGELOG.new
+          echo "$ENTRY" >> CHANGELOG.new
+          tail -n +8 CHANGELOG.md >> CHANGELOG.new
+          mv CHANGELOG.new CHANGELOG.md
+
+      - name: Commit to private repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git diff --staged --quiet || git commit -m "docs: update CHANGELOG.md for ${TAG_NAME}"
+          git push origin main
+
+      - name: Push CHANGELOG to public repo
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: |
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/OutrageLabs/terX.git" public-repo
+          cp CHANGELOG.md public-repo/
+          cd public-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git diff --staged --quiet || git commit -m "docs: update CHANGELOG.md for ${TAG_NAME}"
+          git push
+
+  # Publish to AUR
+  publish-aur:
+    needs: publish-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get version from tag
+        id: version
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: echo "version=${TAG_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Wait for release assets
+        run: sleep 60
+
+      - name: Download and get SHA256
+        id: sha256
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          URL="https://github.com/OutrageLabs/terX/releases/download/v${VERSION}/terx-bin-${VERSION}-1-x86_64.pkg.tar.zst"
+          curl -sLO "$URL"
+          SHA256=$(sha256sum "terx-bin-${VERSION}-1-x86_64.pkg.tar.zst" | cut -d' ' -f1)
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+
+      - name: Generate PKGBUILD
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          SHA256: ${{ steps.sha256.outputs.sha256 }}
+        run: |
+          cat > PKGBUILD << 'PKGBUILD_EOF'
+          # Maintainer: kofany <j@dabrowski.biz>
+          pkgname=terx-bin
+          pkgver=${VERSION}
+          pkgrel=1
+          pkgdesc="Cross-platform SSH client with GPU-accelerated terminal rendering"
+          arch=('x86_64')
+          url="https://github.com/OutrageLabs/terX"
+          license=('custom:proprietary')
+          depends=(
+              'webkit2gtk-4.1'
+              'gtk3'
+              'glib2'
+              'gdk-pixbuf2'
+              'cairo'
+              'pango'
+              'libsoup3'
+              'openssl'
+              'hicolor-icon-theme'
+          )
+          optdepends=(
+              'libappindicator-gtk3: system tray support'
+              'gst-plugins-good: video/audio support'
+          )
+          provides=('terx')
+          conflicts=('terx')
+          options=('!strip' '!debug')
+          source=("terx-bin-${pkgver}.pkg.tar.zst::https://github.com/OutrageLabs/terX/releases/download/v${pkgver}/terx-bin-${pkgver}-1-x86_64.pkg.tar.zst")
+          sha256sums=('SKIP')
+          noextract=("terx-bin-${pkgver}.pkg.tar.zst")
+
+          package() {
+              cd "${srcdir}"
+              bsdtar -xf "terx-bin-${pkgver}.pkg.tar.zst" -C "${pkgdir}/"
+              rm -f "${pkgdir}/.PKGINFO" "${pkgdir}/.BUILDINFO" "${pkgdir}/.MTREE" 2>/dev/null || true
+          }
+          PKGBUILD_EOF
+          # Replace variables
+          sed -i "s/\${VERSION}/${VERSION}/g" PKGBUILD
+          sed -i "s/'SKIP'/'${SHA256}'/g" PKGBUILD
+
+      - name: Generate .SRCINFO
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          SHA256: ${{ steps.sha256.outputs.sha256 }}
+        run: |
+          cat > .SRCINFO << SRCINFO_EOF
+          pkgbase = terx-bin
+          	pkgdesc = Cross-platform SSH client with GPU-accelerated terminal rendering
+          	pkgver = ${VERSION}
+          	pkgrel = 1
+          	url = https://github.com/OutrageLabs/terX
+          	arch = x86_64
+          	license = custom:proprietary
+          	depends = webkit2gtk-4.1
+          	depends = gtk3
+          	depends = glib2
+          	depends = gdk-pixbuf2
+          	depends = cairo
+          	depends = pango
+          	depends = libsoup3
+          	depends = openssl
+          	depends = hicolor-icon-theme
+          	optdepends = libappindicator-gtk3: system tray support
+          	optdepends = gst-plugins-good: video/audio support
+          	provides = terx
+          	conflicts = terx
+          	options = !strip
+          	options = !debug
+          	noextract = terx-bin-${VERSION}.pkg.tar.zst
+          	source = terx-bin-${VERSION}.pkg.tar.zst::https://github.com/OutrageLabs/terX/releases/download/v${VERSION}/terx-bin-${VERSION}-1-x86_64.pkg.tar.zst
+          	sha256sums = ${SHA256}
+
+          pkgname = terx-bin
+          SRCINFO_EOF
+
+      - name: Publish to AUR
+        uses: KSXGitHub/github-actions-deploy-aur@v3.0.1
+        with:
+          pkgname: terx-bin
+          pkgbuild: ./PKGBUILD
+          commit_username: kofany
+          commit_email: j@dabrowski.biz
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: "Update to ${{ steps.version.outputs.version }}"
+          assets: .SRCINFO
