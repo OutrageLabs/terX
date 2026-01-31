@@ -302,6 +302,18 @@ jobs:
           fetch-depth: 0
           ref: main
 
+      - name: Get previous tag
+        id: prev_tag
+        run: |
+          # Get all tags sorted by version, find the one before current
+          PREV_TAG=$(git tag --sort=-v:refname | grep -A1 "^${TAG_NAME}$" | tail -1)
+          if [ "$PREV_TAG" = "$TAG_NAME" ] || [ -z "$PREV_TAG" ]; then
+            # Fallback: get second most recent tag
+            PREV_TAG=$(git tag --sort=-v:refname | head -2 | tail -1)
+          fi
+          echo "tag=$PREV_TAG" >> $GITHUB_OUTPUT
+          echo "Previous tag: $PREV_TAG"
+
       - name: Generate changelog
         id: changelog
         uses: mikepenz/release-changelog-builder-action@v5
@@ -309,29 +321,31 @@ jobs:
           owner: OutrageLabs
           repo: terx-source
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          fromTag: ${{ steps.prev_tag.outputs.tag }}
           toTag: ${{ github.ref_name }}
           mode: COMMIT
           configurationJson: |
             {
               "categories": [
-                { "title": "### :sparkles: New Features", "labels": [] },
-                { "title": "### :bug: Bug Fixes", "labels": [] },
-                { "title": "### :construction_worker: CI/CD", "labels": [] },
-                { "title": "### :memo: Documentation", "labels": [] },
-                { "title": "### :wrench: Chores", "labels": [] }
+                { "title": "### :sparkles: New Features", "labels": [], "rules": [{"pattern": "^feat", "on_property": "title"}] },
+                { "title": "### :bug: Bug Fixes", "labels": [], "rules": [{"pattern": "^fix", "on_property": "title"}] },
+                { "title": "### :construction_worker: CI/CD", "labels": [], "rules": [{"pattern": "^ci", "on_property": "title"}] },
+                { "title": "### :wrench: Chores", "labels": [], "rules": [{"pattern": "^chore", "on_property": "title"}] }
               ],
+              "ignore_labels": ["ignore"],
               "sort": { "order": "ASC", "on_property": "mergedAt" },
-              "template": "#{{CHANGELOG}}",
-              "pr_template": "- #{{TITLE}} (#{{NUMBER}})",
-              "commit_template": "- `#{{SHA_SHORT}}` - #{{TITLE}}",
+              "template": "{{CHANGELOG}}",
+              "commit_template": "- {{TITLE}}",
+              "empty_template": "No significant changes",
               "transformers": [
-                { "pattern": "^feat(\\(.+\\))?:", "target": "### :sparkles: New Features" },
-                { "pattern": "^fix(\\(.+\\))?:", "target": "### :bug: Bug Fixes" },
-                { "pattern": "^ci(\\(.+\\))?:", "target": "### :construction_worker: CI/CD" },
-                { "pattern": "^docs(\\(.+\\))?:", "target": "### :memo: Documentation" },
-                { "pattern": "^chore(\\(.+\\))?:", "target": "### :wrench: Chores" }
+                { "pattern": "^feat(\\\\(.*\\\\))?:\\\\s*", "target": "" },
+                { "pattern": "^fix(\\\\(.*\\\\))?:\\\\s*", "target": "" },
+                { "pattern": "^ci(\\\\(.*\\\\))?:\\\\s*", "target": "" },
+                { "pattern": "^chore(\\\\(.*\\\\))?:\\\\s*", "target": "" },
+                { "pattern": "^docs(\\\\(.*\\\\))?:\\\\s*", "target": "" }
               ],
-              "commitMode": true
+              "commitMode": true,
+              "exclude_merge_branches": ["main", "master"]
             }
 
       - name: Update CHANGELOG.md
