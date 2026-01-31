@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.11] - 2026-01-31
+
+### :sparkles: New Features
+
+-  - ### :memo: Documentation update CHANGELOG.md for v0.2.10
+-  - ### :construction_worker: CI/CD add release workflow (builds from private source)
+-  - ### :bug: Bug Fixes add GITHUB_TOKEN to release action
+
+
+
+
 ## [v0.2.10] - 2026-01-30
 
 ### :sparkles: New Features
