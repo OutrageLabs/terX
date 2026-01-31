@@ -306,6 +306,10 @@ jobs:
         id: changelog
         uses: mikepenz/release-changelog-builder-action@v5
         with:
+          owner: OutrageLabs
+          repo: terx-source
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          toTag: ${{ github.ref_name }}
           mode: COMMIT
           configurationJson: |
             {
@@ -329,20 +333,15 @@ jobs:
               ],
               "commitMode": true
             }
-        env:
-          GITHUB_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
 
       - name: Update CHANGELOG.md
+        env:
+          CHANGELOG_CONTENT: ${{ steps.changelog.outputs.changelog }}
         run: |
           DATE=$(date +%Y-%m-%d)
-          ENTRY="## [${TAG_NAME}] - ${DATE}
-
-          ${{ steps.changelog.outputs.changelog }}
-
-          "
           # Insert after the header (line 7)
           head -7 CHANGELOG.md > CHANGELOG.new
-          echo "$ENTRY" >> CHANGELOG.new
+          printf '## [%s] - %s\n\n%s\n\n' "${TAG_NAME}" "${DATE}" "${CHANGELOG_CONTENT}" >> CHANGELOG.new
           tail -n +8 CHANGELOG.md >> CHANGELOG.new
           mv CHANGELOG.new CHANGELOG.md
 
