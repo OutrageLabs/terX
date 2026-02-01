@@ -287,14 +287,14 @@ jobs:
             artifacts/**/*.rpm
             artifacts/**/*.pkg.tar.zst
 
-  # Generate CHANGELOG and sync to both repos
+  # Generate CHANGELOG and sync to public repo
   update-changelog:
     needs: publish-release
     runs-on: ubuntu-latest
     env:
       TAG_NAME: ${{ github.ref_name }}
     steps:
-      - name: Checkout private repo
+      - name: Checkout private repo (source of commits)
         uses: actions/checkout@v4
         with:
           repository: OutrageLabs/terx-source
@@ -302,60 +302,36 @@ jobs:
           fetch-depth: 0
           ref: main
 
-      - name: Get previous tag
-        id: prev_tag
+      - name: Checkout cliff.toml from public repo
         run: |
-          # Get all tags sorted by version, find the one before current
-          PREV_TAG=$(git tag --sort=-v:refname | grep -A1 "^${TAG_NAME}$" | tail -1)
-          if [ "$PREV_TAG" = "$TAG_NAME" ] || [ -z "$PREV_TAG" ]; then
-            # Fallback: get second most recent tag
-            PREV_TAG=$(git tag --sort=-v:refname | head -2 | tail -1)
-          fi
-          echo "tag=$PREV_TAG" >> $GITHUB_OUTPUT
-          echo "Previous tag: $PREV_TAG"
+          curl -sL "https://raw.githubusercontent.com/OutrageLabs/terX/main/cliff.toml" -o cliff.toml
 
-      - name: Generate changelog
+      - name: Generate changelog for this release
         id: changelog
-        uses: mikepenz/release-changelog-builder-action@v5
+        uses: orhun/git-cliff-action@v4
         with:
-          owner: OutrageLabs
-          repo: terx-source
-          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-          fromTag: ${{ steps.prev_tag.outputs.tag }}
-          toTag: ${{ github.ref_name }}
-          mode: COMMIT
-          configurationJson: |
-            {
-              "categories": [
-                { "title": "### :sparkles: New Features", "labels": [], "rules": [{"pattern": "^feat", "on_property": "title"}] },
-                { "title": "### :bug: Bug Fixes", "labels": [], "rules": [{"pattern": "^fix", "on_property": "title"}] },
-                { "title": "### :construction_worker: CI/CD", "labels": [], "rules": [{"pattern": "^ci", "on_property": "title"}] },
-                { "title": "### :wrench: Chores", "labels": [], "rules": [{"pattern": "^chore", "on_property": "title"}] }
-              ],
-              "ignore_labels": ["ignore"],
-              "sort": { "order": "ASC", "on_property": "mergedAt" },
-              "template": "{{CHANGELOG}}",
-              "commit_template": "- {{TITLE}}",
-              "empty_template": "No significant changes",
-              "transformers": [
-                { "pattern": "^feat(\\\\(.*\\\\))?:\\\\s*", "target": "" },
-                { "pattern": "^fix(\\\\(.*\\\\))?:\\\\s*", "target": "" },
-                { "pattern": "^ci(\\\\(.*\\\\))?:\\\\s*", "target": "" },
-                { "pattern": "^chore(\\\\(.*\\\\))?:\\\\s*", "target": "" },
-                { "pattern": "^docs(\\\\(.*\\\\))?:\\\\s*", "target": "" }
-              ],
-              "commitMode": true,
-              "exclude_merge_branches": ["main", "master"]
-            }
+          config: cliff.toml
+          args: --current --strip header
+        env:
+          OUTPUT: CHANGES.md
+
+      - name: Read changelog content
+        id: read_changelog
+        run: |
+          # Read the generated changelog
+          CONTENT=$(cat CHANGES.md)
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Update CHANGELOG.md
-        env:
-          CHANGELOG_CONTENT: ${{ steps.changelog.outputs.changelog }}
         run: |
           DATE=$(date +%Y-%m-%d)
           # Insert after the header (line 7)
           head -7 CHANGELOG.md > CHANGELOG.new
-          printf '## [%s] - %s\n\n%s\n\n' "${TAG_NAME}" "${DATE}" "${CHANGELOG_CONTENT}" >> CHANGELOG.new
+          printf '## [%s] - %s\n\n' "${TAG_NAME}" "${DATE}" >> CHANGELOG.new
+          cat CHANGES.md >> CHANGELOG.new
+          printf '\n' >> CHANGELOG.new
           tail -n +8 CHANGELOG.md >> CHANGELOG.new
           mv CHANGELOG.new CHANGELOG.md
 
@@ -383,10 +359,8 @@ jobs:
       - name: Update release body with changelog
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CHANGELOG_CONTENT: ${{ steps.changelog.outputs.changelog }}
         run: |
-          printf '%s\n' "${CHANGELOG_CONTENT}" > release_body.md
-          gh release edit "${TAG_NAME}" --notes-file release_body.md
+          gh release edit "${TAG_NAME}" --repo OutrageLabs/terX --notes-file CHANGES.md
 
   # Publish to AUR
   publish-aur:

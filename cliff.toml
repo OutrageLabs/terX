@@ -1,0 +1,39 @@
+# git-cliff configuration for terX changelog
+
+[changelog]
+header = ""
+body = """
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group }}
+{% for commit in commits %}
+- {{ commit.message | split(pat="\n") | first | trim }}\
+{% endfor %}
+
+{% endfor %}
+"""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+split_commits = false
+commit_parsers = [
+  { message = "^feat", group = ":sparkles: New Features" },
+  { message = "^fix", group = ":bug: Bug Fixes" },
+  { message = "^doc", group = ":memo: Documentation" },
+  { message = "^perf", group = ":zap: Performance" },
+  { message = "^refactor", group = ":recycle: Refactor" },
+  { message = "^style", group = ":art: Styling" },
+  { message = "^test", group = ":white_check_mark: Testing" },
+  { message = "^ci", group = ":construction_worker: CI/CD" },
+  { message = "^chore", group = ":wrench: Chores" },
+  { message = "^security", group = ":lock: Security" },
+  { body = ".*security", group = ":lock: Security" },
+]
+filter_commits = true
+tag_pattern = "v[0-9].*"
+skip_tags = ""
+ignore_tags = ""
+topo_order = false
+sort_commits = "oldest"
