@@ -6,7 +6,10 @@ body = """
 {% for group, commits in commits | group_by(attribute="group") %}
 ### {{ group }}
 {% for commit in commits %}
-- {{ commit.message | split(pat="\n") | first | trim }}\
+{%- set msg = commit.message | split(pat="\n") | first | trim -%}
+{%- set msg = msg | regex_replace(pattern="^(feat|fix|docs|doc|perf|refactor|style|test|ci|chore|security)(\(.*\))?:\s*", with="") -%}
+{%- set msg = msg | capitalize -%}
+- {{ msg }}
 {% endfor %}
 
 {% endfor %}
