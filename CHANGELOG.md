@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.15] - 2026-02-01
+
+### :sparkles: New Features
+
+- Remember window position and size across sessions
+
+### :bug: Bug Fixes
+
+- Help panel fixed size and improved styling
+
+### :recycle: Refactor
+
+- Switch from beamterm-terx fork to stock @beamterm/renderer
+
+### :memo: Documentation
+
+- Update RELEASES.md with git-cliff and release body format
+
 ## [v0.2.14] - 2026-01-31
 
 ### :sparkles: New Features
