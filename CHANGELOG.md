@@ -5,10 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.2.13] - 2026-02-01
+## [v0.2.17] - 2026-02-02
 
-- no changes
+### :bug: Bug Fixes
 
+- Fix DPR handling with beamterm-terx 0.13.0 - use resizePhysical() for precise HiDPI control
+- Fix charWidth/charHeight getters to return CSS pixels for FitAddon
+- Switch from @beamterm/renderer to @kofany/beamterm-terx 0.13.0
 
 ## [v0.2.16] - 2026-02-01
 
