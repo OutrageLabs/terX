@@ -97,13 +97,35 @@ jobs:
           pkgname = terx-bin
           EOF
 
-      - name: Publish to AUR
-        uses: KSXGitHub/github-actions-deploy-aur@v3.0.1
-        with:
-          pkgname: terx-bin
-          pkgbuild: ./PKGBUILD
-          commit_username: kofany
-          commit_email: j@dabrowski.biz
-          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          commit_message: "Update to ${{ github.event.inputs.version }}"
-          assets: .SRCINFO
+      - name: Setup SSH for AUR
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AUR_SSH_PRIVATE_KEY }}" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan -t rsa,ecdsa,ed25519 aur.archlinux.org >> ~/.ssh/known_hosts
+          cat > ~/.ssh/config << EOF
+          Host aur.archlinux.org
+            IdentityFile ~/.ssh/aur
+            User aur
+          EOF
+
+      - name: Clone AUR repo and push
+        run: |
+          git config --global user.name "kofany"
+          git config --global user.email "j@dabrowski.biz"
+
+          # Clone AUR repo
+          git clone ssh://aur@aur.archlinux.org/terx-bin.git aur-repo
+          cd aur-repo
+
+          # CRITICAL: checkout master branch (fix detached HEAD)
+          git checkout -B master origin/master || git checkout -b master
+
+          # Copy files
+          cp ../PKGBUILD .
+          cp ../.SRCINFO .
+
+          # Commit and push
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update to ${VERSION}" || echo "No changes to commit"
+          git push origin master
