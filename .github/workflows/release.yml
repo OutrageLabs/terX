@@ -478,3 +478,4 @@ jobs:
           commit_message: "Update to ${{ steps.version.outputs.version }}"
           assets: .SRCINFO
           force_push: true
+          ref: master
