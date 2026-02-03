@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.18] - 2026-02-03
+
+
+### :bug: Bug Fixes
+- Fix select elements using wrong classes
+- Prevent custom select/input styles from overriding daisyui
+- Remove legacy css that overrides daisyui component styles
+- Properly configure daisyui 5 theme for component styling
+- Remove -bordered classes removed in daisyui 5
+- Update bun.lock with daisyui dependency
+
+
+
+### :memo: Documentation
+- Update changelog.md for v0.2.17
+- Document beamterm-terx fork differences from upstream
+
+
+
+### :recycle: Refactor
+- Migrate dialogs.ts to daisyui modal pattern
+- Migrate core components to daisyui
+- Migrate dialogs to daisyui patterns
+- Cleanup unused css and update remaining dialogs
+- Migrate all ui components to pure daisyui/tailwind
+
+
+
+### :sparkles: New Features
+- Add daisyui 5 foundation
+
+
+
+### :wrench: Chores
+- Bump version to v0.2.18
+
+
+
+
 ## [v0.2.17] - 2026-02-02
 
 ### :bug: Bug Fixes
