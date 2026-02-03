@@ -477,5 +477,3 @@ jobs:
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           commit_message: "Update to ${{ steps.version.outputs.version }}"
           assets: .SRCINFO
-          force_push: true
-          ref: master
