@@ -5,8 +5,9 @@
 ### Cross-Platform SSH Client
 
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-brightgreen)](https://github.com/OutrageLabs/terX/releases)
-[![Version](https://img.shields.io/badge/Version-0.2.4-orange)](https://github.com/OutrageLabs/terX/releases/latest)
+[![Version](https://img.shields.io/badge/Version-0.2.19-orange)](https://github.com/OutrageLabs/terX/releases/latest)
 [![License](https://img.shields.io/badge/License-Proprietary-red)](LICENSE)
+[![AUR](https://img.shields.io/aur/version/terx-bin?label=AUR)](https://aur.archlinux.org/packages/terx-bin)
 
 **Secure SSH connections with GPU-accelerated terminal rendering**
 
@@ -20,16 +21,21 @@
 
 ## Features
 
-- **SSH Connection Manager** — Save, organize, and quickly connect to your servers
-- **Host Key Verification** — OpenSSH-style known_hosts with MITM protection
-- **SFTP File Manager** — Dual-pane Norton Commander-style file browser
-- **GPU-Accelerated Rendering** — WebGL2-powered terminal with sub-millisecond render times
+- **SSH Connection Manager** — Save, organize, and quickly connect to your servers with tags and search
+- **SSH Agent Support** — Authenticate using keys from your system SSH agent (ssh-agent, gpg-agent, 1Password etc.)
+- **Agent Forwarding** — Forward your local SSH agent to remote servers for seamless key-based operations
+- **Host Key Verification** — OpenSSH-style known_hosts with MITM protection (SHA256/MD5 fingerprints)
+- **Multi-Tab Sessions** — Open multiple terminal sessions in tabs, including multiple connections to the same host
+- **SFTP File Manager** — Dual-pane Norton Commander-style file browser with drag & drop
+- **GPU-Accelerated Rendering** — WebGL2-powered terminal (beamterm) with sub-millisecond render times
+- **Kitty Graphics Protocol** — Inline image display with fullscreen popup, pan & zoom
 - **End-to-End Encryption** — All credentials encrypted with AES-256-GCM + PBKDF2
-- **Multiple Storage Options** — Local encrypted storage or terX Cloud sync
-- **Native Text Selection** — Hardware-accelerated selection with auto-copy
-- **Nerd Font Support** — Full icon and emoji rendering
-- **Dark Themes** — Catppuccin Mocha, Dracula, and more
-- **Cross-Platform** — Native apps for macOS, Windows, and Linux
+- **Multiple Storage Options** — Local encrypted storage or terX Cloud sync across devices
+- **Native Text Selection** — Hardware-accelerated selection with block/rectangular mode
+- **Nerd Font Support** — Full icon and emoji rendering out of the box
+- **Theme Collection** — Catppuccin Mocha, Dracula, Tokyo Night, and more
+- **Internationalization** — English and Polish UI
+- **Cross-Platform** — Native apps for macOS (Apple Silicon & Intel), Windows, and Linux
 
 ## Screenshots
 
@@ -48,28 +54,40 @@
 
 ## Download
 
-| Platform | Architecture | Download |
-|----------|--------------|----------|
-| **macOS** | Apple Silicon (M1/M2/M3/M4) | [terX.dmg](https://github.com/OutrageLabs/terX/releases/latest) |
-| **Windows** | x64 | [terX.exe](https://github.com/OutrageLabs/terX/releases/latest) |
-| **Linux** | x64 | [terX.AppImage](https://github.com/OutrageLabs/terX/releases/latest) / [.deb](https://github.com/OutrageLabs/terX/releases/latest) |
+| Platform | Architecture | Formats |
+|----------|--------------|---------|
+| **macOS** | Apple Silicon (M1/M2/M3/M4) | [.dmg](https://github.com/OutrageLabs/terX/releases/latest) |
+| **macOS** | Intel (x64) | [.dmg](https://github.com/OutrageLabs/terX/releases/latest) |
+| **Windows** | x64 | [.exe](https://github.com/OutrageLabs/terX/releases/latest) / [.msi](https://github.com/OutrageLabs/terX/releases/latest) |
+| **Linux** | x64 | [.AppImage](https://github.com/OutrageLabs/terX/releases/latest) / [.deb](https://github.com/OutrageLabs/terX/releases/latest) / [.rpm](https://github.com/OutrageLabs/terX/releases/latest) |
+| **Arch Linux** | x64 | [AUR (terx-bin)](https://aur.archlinux.org/packages/terx-bin) |
 
-### First Run
+### Installation
 
 **macOS:** Right-click → Open (to bypass Gatekeeper on first launch)
 
-**Linux:**
+**Windows:** Run the `.exe` installer or use the `.msi` package.
+
+**Linux (AppImage):**
 ```bash
 chmod +x terx_*.AppImage
 ./terx_*.AppImage
 ```
 
-## Documentation
+**Arch Linux (AUR):**
+```bash
+yay -S terx-bin
+```
 
-- [Installation Guide](docs/installation.md)
-- [Getting Started](docs/getting-started.md)
-- [Keyboard Shortcuts](docs/keyboard-shortcuts.md)
-- [FAQ](docs/faq.md)
+## Authentication Methods
+
+| Method | Description |
+|--------|-------------|
+| **Password** | Saved encrypted passwords or manual entry at connection time |
+| **SSH Key** | Import private keys (Ed25519, RSA, ECDSA) with optional passphrase |
+| **SSH Agent** | Use keys from your system SSH agent (ssh-agent, gpg-agent, 1Password SSH agent, etc.) |
+
+**Agent Forwarding** can be enabled per-host to forward your local SSH agent to remote servers, allowing operations like `git pull` on remote machines using your local keys.
 
 ## Keyboard Shortcuts
 
@@ -78,25 +96,24 @@ chmod +x terx_*.AppImage
 | `Ctrl/Cmd+H` | Toggle sidebar (host list) |
 | `Ctrl/Cmd+,` | Toggle settings panel |
 | `Ctrl/Cmd+T` | New tab (same host) |
-| `Ctrl+Tab` | Switch to next tab |
-| `Ctrl+Shift+Tab` | Switch to previous tab |
+| `Ctrl+Tab` | Next tab |
+| `Ctrl+Shift+Tab` | Previous tab |
 | `Ctrl/Cmd+W` | Close current tab |
-| `F5` | Toggle file manager (when connected) |
-| `Ctrl+F5` | Open file manager for transfer-only mode |
 | `F1` | Toggle shortcuts help panel |
+| `Ctrl+Shift+E` | Open emoji picker |
 | `Shift+PageUp/PageDown` | Scroll terminal history |
 | `Ctrl/Cmd++/-/0` | Zoom terminal font |
 
 ## Text Selection
 
-terX supports two selection modes:
+terX supports two selection modes (configurable in settings):
 
 | Mode | Description |
 |------|-------------|
-| **Shift+Click** (default) | Hold `Shift` and drag to select text. Regular clicks are passed to terminal applications (e.g., for Midnight Commander, vim). |
-| **Direct Selection** | Click and drag to select text directly. Terminal applications won't receive mouse clicks. |
+| **Shift+Click** (default) | Hold `Shift` and drag to select. Regular clicks pass through to terminal apps (vim, MC, irssi). |
+| **Direct Selection** | Click and drag to select directly. Terminal apps won't receive mouse clicks. |
 
-Hold **Alt/Option** to enable block (rectangular) selection mode.
+Hold **Alt/Option** to toggle block (rectangular) selection mode.
 
 ## Storage Options
 
@@ -104,17 +121,35 @@ Hold **Alt/Option** to enable block (rectangular) selection mode.
 |------|--------|-------------|
 | **Local Storage** | Available | Encrypted JSON stored locally. All data protected with AES-256-GCM. |
 | **terX Cloud** | Available | Sync across devices via Supabase. End-to-end encrypted. |
-| **Self-Hosted** | Planned | Connect your own Supabase project for self-hosted cloud storage. |
+| **Self-Hosted** | Planned | Connect your own Supabase instance for self-hosted cloud storage. |
 
 ## Security
 
-- **Host Key Verification** — Protects against MITM attacks with SHA256/MD5 fingerprints
-- **Master Password** — All sensitive data encrypted locally
-- **No Plain Text** — Credentials never stored unencrypted
+- **Host Key Verification** — Protects against MITM attacks with SHA256/MD5 fingerprint display
+- **Master Password** — All sensitive data encrypted locally before storage
+- **No Plain Text** — Credentials never stored unencrypted, anywhere
 - **System Keychain** — Optional integration with OS keychain
-- **E2E Encryption** — Cloud sync uses client-side encryption
+- **E2E Encryption** — Cloud sync uses client-side encryption (server never sees plaintext)
+- **SSH Agent** — Keys never leave the agent; only signatures are transmitted
 
 See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+
+## Documentation
+
+- [Installation Guide](docs/installation.md)
+- [Getting Started](docs/getting-started.md)
+- [Keyboard Shortcuts](docs/keyboard-shortcuts.md)
+- [FAQ](docs/faq.md)
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Framework | [Tauri 2.0](https://tauri.app/) (Rust + Web) |
+| VT Parser | [Ghostty](https://ghostty.org/) WASM |
+| Renderer | [beamterm](https://github.com/junkdog/beamterm) WebGL2 |
+| SSH Client | [russh](https://github.com/warp-tech/russh) |
+| UI | [daisyUI 5](https://daisyui.com/) + Tailwind CSS 4 |
 
 ## Support
 
