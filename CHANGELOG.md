@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.20] - 2026-02-06
+
+
+### :memo: Documentation
+- Update changelog.md for v0.2.19
+
+
+
+### :sparkles: New Features
+- Add local port forwarding (-l) with management ui
+
+
+
+### :wrench: Chores
+- Bump version to v0.2.20
+
+
+
+
 ## [v0.2.19] - 2026-02-06
 
 
