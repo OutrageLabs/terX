@@ -5,7 +5,7 @@
 ### Cross-Platform SSH Client
 
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-brightgreen)](https://github.com/OutrageLabs/terX/releases)
-[![Version](https://img.shields.io/badge/Version-0.2.19-orange)](https://github.com/OutrageLabs/terX/releases/latest)
+[![Version](https://img.shields.io/badge/Version-0.2.20-orange)](https://github.com/OutrageLabs/terX/releases/latest)
 [![License](https://img.shields.io/badge/License-Proprietary-red)](LICENSE)
 [![AUR](https://img.shields.io/aur/version/terx-bin?label=AUR)](https://aur.archlinux.org/packages/terx-bin)
 
@@ -24,6 +24,7 @@
 - **SSH Connection Manager** — Save, organize, and quickly connect to your servers with tags and search
 - **SSH Agent Support** — Authenticate using keys from your system SSH agent (ssh-agent, gpg-agent, 1Password etc.)
 - **Agent Forwarding** — Forward your local SSH agent to remote servers for seamless key-based operations
+- **Local Port Forwarding (-L)** — Tunnel local ports to remote services with per-host config, auto-start, ad-hoc management, and real-time status
 - **Host Key Verification** — OpenSSH-style known_hosts with MITM protection (SHA256/MD5 fingerprints)
 - **Multi-Tab Sessions** — Open multiple terminal sessions in tabs, including multiple connections to the same host
 - **SFTP File Manager** — Dual-pane Norton Commander-style file browser with drag & drop
@@ -88,6 +89,24 @@ yay -S terx-bin
 | **SSH Agent** | Use keys from your system SSH agent (ssh-agent, gpg-agent, 1Password SSH agent, etc.) |
 
 **Agent Forwarding** can be enabled per-host to forward your local SSH agent to remote servers, allowing operations like `git pull` on remote machines using your local keys.
+
+## Port Forwarding
+
+terX supports **Local Port Forwarding (-L)** — tunnel local ports through SSH to reach services on remote networks.
+
+| Feature | Description |
+|---------|-------------|
+| **Per-host config** | Configure forwards in host settings, saved with the host |
+| **Auto-start** | Enabled forwards start automatically when you connect |
+| **Ad-hoc forwarding** | Add new forwards while connected via the status bar |
+| **Real-time status** | See active tunnels, connection count, and errors in the status bar |
+| **Cleanup on disconnect** | All forwards are stopped when the SSH session ends |
+
+**Example:** Forward local port 15432 to a remote PostgreSQL database:
+- Local: `127.0.0.1:15432` → Remote: `127.0.0.1:5432`
+- Connect, then open `localhost:15432` in your database tool
+
+*Remote (-R) and Dynamic (-D / SOCKS5) forwarding are planned for future releases.*
 
 ## Keyboard Shortcuts
 
