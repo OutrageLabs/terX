@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.2.19] - 2026-02-06
+
+
+### :memo: Documentation
+- Update changelog.md for v0.2.18
+
+
+
+### :sparkles: New Features
+- Implement ssh agent auth and agent forwarding
+- Add use_agent and agent_forward params to ssh_connect
+- Add agent auth type and agent_forward field
+- Add ssh agent translations (en-us, pl-pl)
+- Add agent auth toggle and forward agent checkbox to host dialog
+- Integrate agent auth and forwarding in connection flow
+
+
+
+### :wrench: Chores
+- Bump version to v0.2.19
+
+
+
+
 ## [v0.2.18] - 2026-02-03
 
 
