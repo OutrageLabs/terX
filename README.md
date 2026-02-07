@@ -5,7 +5,7 @@
 ### Cross-Platform SSH Client
 
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-brightgreen)](https://github.com/OutrageLabs/terX/releases)
-[![Version](https://img.shields.io/badge/Version-0.2.21-orange)](https://github.com/OutrageLabs/terX/releases/latest)
+[![Version](https://img.shields.io/badge/Version-0.2.22-orange)](https://github.com/OutrageLabs/terX/releases/latest)
 [![License](https://img.shields.io/badge/License-Proprietary-red)](LICENSE)
 [![AUR](https://img.shields.io/aur/version/terx-bin?label=AUR)](https://aur.archlinux.org/packages/terx-bin)
 
