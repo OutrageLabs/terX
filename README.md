@@ -5,7 +5,7 @@
 ### Cross-Platform SSH Client
 
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-brightgreen)](https://github.com/OutrageLabs/terX/releases)
-[![Version](https://img.shields.io/badge/Version-0.2.20-orange)](https://github.com/OutrageLabs/terX/releases/latest)
+[![Version](https://img.shields.io/badge/Version-0.2.21-orange)](https://github.com/OutrageLabs/terX/releases/latest)
 [![License](https://img.shields.io/badge/License-Proprietary-red)](LICENSE)
 [![AUR](https://img.shields.io/aur/version/terx-bin?label=AUR)](https://aur.archlinux.org/packages/terx-bin)
 
@@ -30,6 +30,7 @@
 - **SFTP File Manager** — Dual-pane Norton Commander-style file browser with drag & drop
 - **GPU-Accelerated Rendering** — WebGL2-powered terminal (beamterm) with sub-millisecond render times
 - **Kitty Graphics Protocol** — Inline image display with fullscreen popup, pan & zoom
+- **Biometric Unlock** — Touch ID / Windows Hello to unlock terX instead of typing master password
 - **End-to-End Encryption** — All credentials encrypted with AES-256-GCM + PBKDF2
 - **Multiple Storage Options** — Local encrypted storage or terX Cloud sync across devices
 - **Native Text Selection** — Hardware-accelerated selection with block/rectangular mode
